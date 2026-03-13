@@ -38,6 +38,7 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
   const [newDirName, setNewDirName] = useState('');
   const [mkdirParentPath, setMkdirParentPath] = useState('/');
   const [currentPath, setCurrentPath] = useState('/');
+  const [selectedFile, setSelectedFile] = useState<FileInfo | null>(null);
 
   // 加载目录内容
   const loadDirectory = useCallback(async (path: string): Promise<FileTreeNode[]> => {
@@ -59,29 +60,6 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
               >
                 <FolderOutlined className="folder-icon" />
                 <span className="file-name-text">{item.name}</span>
-                <span className="file-actions">
-                  <Button 
-                    type="text" 
-                    size="small" 
-                    icon={<DownloadOutlined />}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDownload(item);
-                    }}
-                    title="下载"
-                  />
-                  <Button 
-                    type="text" 
-                    size="small" 
-                    danger
-                    icon={<DeleteOutlined />}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(item);
-                    }}
-                    title="删除"
-                  />
-                </span>
               </span>
             ),
             isLeaf: false,
@@ -121,29 +99,6 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
               >
                 <FolderOutlined className="folder-icon" />
                 <span className="file-name-text">{item.name}</span>
-                <span className="file-actions">
-                  <Button 
-                    type="text" 
-                    size="small" 
-                    icon={<DownloadOutlined />}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDownload(item);
-                    }}
-                    title="下载"
-                  />
-                  <Button 
-                    type="text" 
-                    size="small" 
-                    danger
-                    icon={<DeleteOutlined />}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(item);
-                    }}
-                    title="删除"
-                  />
-                </span>
               </span>
             ),
             isLeaf: false,
@@ -327,7 +282,7 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  // 文件项右键菜单
+  // 文件项右键菜单 - 选中文件时显示
   const getFileItemContextMenu = (file: FileInfo): MenuProps['items'] => [
     {
       key: 'download',
@@ -361,7 +316,7 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
     },
   ].filter(Boolean) as MenuProps['items'];
 
-  // 空白区域右键菜单
+  // 空白区域右键菜单 - 未选中文件时显示
   const getEmptyContextMenu = (): MenuProps['items'] => [
     {
       key: 'upload',
@@ -405,6 +360,14 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
       },
     },
   ];
+
+  // 右键菜单 - 根据选中状态决定显示内容
+  const getContextMenu = (): MenuProps['items'] => {
+    if (selectedFile) {
+      return getFileItemContextMenu(selectedFile);
+    }
+    return getEmptyContextMenu();
+  };
 
   return (
     <div className="file-manager">
@@ -519,38 +482,55 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
               </Dropdown>
             ) : (
               <Dropdown 
-                menu={{ items: getEmptyContextMenu() }} 
+                menu={{ items: getContextMenu() }} 
                 trigger={['contextMenu']}
               >
-                <div className="file-grid">
-                  {currentFiles.map(file => (
-                    <div 
-                      key={file.path} 
-                      className={`file-item ${file.isDirectory ? 'folder' : 'file'}`}
-                      onDoubleClick={() => {
-                        if (file.isDirectory) {
-                          const path = file.path.startsWith('//') ? file.path.substring(1) : file.path;
-                          setCurrentPath(path);
-                          setSelectedKey(path);
-                          setExpandedKeys(prev => 
-                            prev.includes(path) ? prev : [...prev, path]
-                          );
-                        }
-                      }}
-                    >
-                      <div className="file-icon">
-                        {file.isDirectory ? (
-                          <FolderOpenOutlined style={{ fontSize: 32, color: '#f0883e' }} />
-                        ) : (
-                          <FileOutlined style={{ fontSize: 32, color: '#8b949e' }} />
-                        )}
-                      </div>
-                      <div className="file-name">{file.name}</div>
-                      <div className="file-info">
-                        {file.isDirectory ? '' : formatSize(file.size)}
-                      </div>
-                    </div>
-                  ))}
+                <div 
+                  className="file-grid-wrapper"
+                  onClick={(e) => {
+                    // 点击空白区域取消选中
+                    if (e.target === e.currentTarget) {
+                      setSelectedFile(null);
+                    }
+                  }}
+                >
+                  <div className="file-grid">
+                    {currentFiles.map(file => (
+                      <Dropdown 
+                        key={file.path} 
+                        menu={{ items: getFileItemContextMenu(file) }} 
+                        trigger={['contextMenu']}
+                      >
+                        <div 
+                          className={`file-item ${file.isDirectory ? 'folder' : 'file'} ${selectedFile?.path === file.path ? 'selected' : ''}`}
+                          onClick={() => setSelectedFile(file)}
+                          onDoubleClick={() => {
+                            if (file.isDirectory) {
+                              const path = file.path.startsWith('//') ? file.path.substring(1) : file.path;
+                              setCurrentPath(path);
+                              setSelectedKey(path);
+                              setSelectedFile(null);
+                              setExpandedKeys(prev => 
+                                prev.includes(path) ? prev : [...prev, path]
+                              );
+                            }
+                          }}
+                        >
+                          <div className="file-icon">
+                            {file.isDirectory ? (
+                              <FolderOpenOutlined style={{ fontSize: 32, color: '#f0883e' }} />
+                            ) : (
+                              <FileOutlined style={{ fontSize: 32, color: '#8b949e' }} />
+                            )}
+                          </div>
+                          <div className="file-name">{file.name}</div>
+                          <div className="file-info">
+                            {file.isDirectory ? '' : formatSize(file.size)}
+                          </div>
+                        </div>
+                      </Dropdown>
+                    ))}
+                  </div>
                 </div>
               </Dropdown>
             )}

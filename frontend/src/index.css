@@ -68,14 +68,16 @@ body {
   color: #c9d1d9 !important;
 }
 
-/* 模态框样式 */
-.ant-modal-content {
-  background: #161b22;
+/* 模态框样式 - 统一背景 */
+.ant-modal-content,
+.ant-modal-wrap .ant-modal-content {
+  background: #161b22 !important;
   border: 1px solid #30363d;
 }
 
-.ant-modal-header {
-  background: #161b22;
+.ant-modal-header,
+.ant-modal-wrap .ant-modal-header {
+  background: #161b22 !important;
   border-bottom: 1px solid #30363d;
 }
 
@@ -95,12 +97,16 @@ body {
   color: #c9d1d9;
 }
 
-.ant-modal-body {
+.ant-modal-body,
+.ant-modal-wrap .ant-modal-body {
   color: #c9d1d9;
+  background: #161b22 !important;
 }
 
-.ant-modal-footer {
+.ant-modal-footer,
+.ant-modal-wrap .ant-modal-footer {
   border-top: 1px solid #30363d;
+  background: #161b22 !important;
 }
 
 .ant-modal-footer .ant-btn {

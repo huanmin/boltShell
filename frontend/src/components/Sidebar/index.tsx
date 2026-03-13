@@ -62,6 +62,7 @@ const Sidebar = () => {
     conn.host.toLowerCase().includes(searchKeyword.toLowerCase())
   );
 
+  // 单击：切换到已有会话或创建新会话
   const handleConnectionClick = (conn: Connection) => {
     // 检查是否已有该连接的终端会话
     const existingSession = sessions.find(s => s.connectionId === conn.id && s.type === 'terminal');
@@ -71,23 +72,33 @@ const Sidebar = () => {
       setActiveSession(existingSession.id);
     } else {
       // 创建新终端会话
-      const newSessionId = `terminal-${Date.now()}`;
-      addSession({
-        id: newSessionId,
-        connectionId: conn.id,
-        name: conn.name,
-        type: 'terminal',
-        active: true,
-      });
-      setActiveSession(newSessionId);
-      
-      // 模拟连接过程
-      if (conn.status === 'disconnected') {
-        updateConnectionStatus(conn.id, 'connecting');
-        setTimeout(() => {
-          updateConnectionStatus(conn.id, 'connected');
-        }, 1500);
-      }
+      createNewTerminalSession(conn);
+    }
+  };
+
+  // 双击：始终创建新会话
+  const handleConnectionDoubleClick = (conn: Connection) => {
+    createNewTerminalSession(conn);
+  };
+
+  // 创建新终端会话
+  const createNewTerminalSession = (conn: Connection) => {
+    const newSessionId = `terminal-${Date.now()}`;
+    addSession({
+      id: newSessionId,
+      connectionId: conn.id,
+      name: conn.name,
+      type: 'terminal',
+      active: true,
+    });
+    setActiveSession(newSessionId);
+    
+    // 模拟连接过程
+    if (conn.status === 'disconnected') {
+      updateConnectionStatus(conn.id, 'connecting');
+      setTimeout(() => {
+        updateConnectionStatus(conn.id, 'connected');
+      }, 1500);
     }
   };
 
@@ -191,6 +202,7 @@ const Sidebar = () => {
             <List.Item
               className={`connection-item ${sessions.find(s => s.connectionId === conn.id)?.active ? 'active' : ''}`}
               onClick={() => handleConnectionClick(conn)}
+              onDoubleClick={() => handleConnectionDoubleClick(conn)}
             >
               <div className="connection-info">
                 <span className="status-dot" style={{ background: statusColors[conn.status] }} />
