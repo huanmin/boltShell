@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+target/
+
+# Build output
+dist/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Credentials (安全)
+*.enc
+master.key
+credentials.enc
+ai-config.enc
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Test coverage
+coverage/
+
+# Maven
+.m2/

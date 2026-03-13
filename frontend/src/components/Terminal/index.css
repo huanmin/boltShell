@@ -1,0 +1,212 @@
+.terminal-area {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #0d1117;
+}
+
+.tab-bar {
+  background: #161b22;
+  border-bottom: 1px solid #30363d;
+  padding: 0 12px;
+}
+
+.tab-bar .ant-tabs-nav {
+  margin: 0;
+}
+
+.tab-bar .ant-tabs-tab {
+  background: #21262d;
+  border: 1px solid #30363d;
+  border-radius: 6px 6px 0 0;
+  margin-right: 4px !important;
+}
+
+.tab-bar .ant-tabs-tab:hover {
+  background: #30363d;
+}
+
+.tab-bar .ant-tabs-tab-active {
+  background: #0d1117 !important;
+  border-bottom-color: #0d1117 !important;
+}
+
+.tab-bar .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: #58a6ff !important;
+}
+
+.tab-bar .ant-tabs-ink-bar {
+  display: none;
+}
+
+.tab-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #c9d1d9;
+}
+
+.tab-name {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab-close {
+  font-size: 10px;
+  color: #6e7681;
+  opacity: 0;
+  transition: all 0.2s;
+  margin-left: 4px;
+}
+
+.tab-label:hover .tab-close {
+  opacity: 1;
+}
+
+.tab-close:hover {
+  color: #f85149;
+}
+
+.terminal-wrapper {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.terminal-container {
+  flex: 1;
+  background: #0d1117;
+  padding: 12px;
+  overflow: hidden;
+}
+
+/* AI 建议面板 - 固定在终端下方 */
+.ai-suggestion-panel {
+  border-top: 1px solid #30363d;
+  background: #161b22;
+  flex-shrink: 0;
+}
+
+.ai-suggestion-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background: #21262d;
+  border-bottom: 1px solid #30363d;
+}
+
+.ai-suggestion-title {
+  font-weight: 500;
+  color: #c9d1d9;
+  font-size: 13px;
+}
+
+.ai-suggestion-header .close-btn {
+  color: #6e7681;
+}
+
+.ai-suggestion-header .close-btn:hover {
+  color: #c9d1d9;
+  background: #30363d;
+}
+
+.ai-suggestion-body {
+  padding: 12px 16px;
+}
+
+/* 命令显示行 */
+.command-display-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #0d1117;
+  border-radius: 6px;
+  border: 1px solid #21262d;
+  margin-bottom: 8px;
+}
+
+.command-prefix {
+  color: #6e7681;
+  font-family: Monaco, Menlo, 'Courier New', monospace;
+  font-weight: bold;
+}
+
+.command-text {
+  font-family: Monaco, Menlo, 'Courier New', monospace;
+  font-size: 14px;
+  color: #58a6ff;
+  background: transparent;
+  padding: 0;
+}
+
+/* 命令编辑行 */
+.command-edit-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.command-edit-row .command-input {
+  flex: 1;
+  font-family: Monaco, Menlo, 'Courier New', monospace;
+}
+
+/* 说明行 */
+.explanation-row {
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.explanation-label {
+  color: #8b949e;
+}
+
+.explanation-text {
+  color: #c9d1d9;
+}
+
+/* 警告行 */
+.warnings-row {
+  padding: 8px 12px;
+  background: #f8514911;
+  border-radius: 6px;
+  border: 1px solid #f8514933;
+  margin-bottom: 8px;
+}
+
+.warning-item {
+  color: #f85149;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.warning-item:last-child {
+  margin-bottom: 0;
+}
+
+/* 操作按钮行 */
+.actions-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #21262d;
+}
+
+/* Tab 按钮样式 */
+.tab-bar .ant-btn {
+  background: transparent;
+  border: none;
+  color: #6e7681;
+}
+
+.tab-bar .ant-btn:hover {
+  color: #58a6ff;
+  background: #21262d;
+}

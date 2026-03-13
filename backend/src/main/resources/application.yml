@@ -1,0 +1,43 @@
+server:
+  port: 18080
+  address: 127.0.0.1
+
+spring:
+  application:
+    name: ai-ssh-tool
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+    date-format: yyyy-MM-dd'T'HH:mm:ss.SSS'Z'
+    time-zone: UTC
+
+# Application specific configuration
+app:
+  frontend:
+    url: http://localhost:5173
+  config:
+    path: ${user.home}/.ai-ssh-tool
+    config-file: config.json
+    credentials-file: credentials.enc
+    ai-config-file: ai-config.enc
+  
+  ssh:
+    connect-timeout: 30000
+    keep-alive-interval: 30000
+    max-sessions: 10
+    verify-host-key: false
+    known-hosts-file: ${user.home}/.ssh/known_hosts
+  
+  ai:
+    enabled: true
+    timeout: 60000
+    max-tokens: 4096
+
+logging:
+  level:
+    root: INFO
+    com.aisshtool: DEBUG
+    net.schmizz.sshj: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

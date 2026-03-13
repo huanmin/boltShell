@@ -1,0 +1,134 @@
+.ai-command-card {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.ai-command-card.danger {
+  border-color: #f85149;
+  background: #161b22;
+}
+
+.ai-command-card .ant-card-head {
+  border-bottom: 1px solid #30363d;
+  min-height: auto;
+  padding: 10px 16px;
+  background: #1f6feb11;
+}
+
+.ai-command-card.danger .ant-card-head {
+  background: #f8514911;
+}
+
+.ai-command-card .ant-card-head-title {
+  color: #c9d1d9;
+}
+
+.ai-command-card .ant-card-body {
+  padding: 16px;
+}
+
+.ai-command-card .ant-card-extra .ant-btn {
+  color: #6e7681;
+}
+
+.ai-command-card .ant-card-extra .ant-btn:hover {
+  color: #c9d1d9;
+}
+
+.command-section {
+  margin-bottom: 12px;
+}
+
+.command-display {
+  background: #0d1117;
+  padding: 12px 16px;
+  border-radius: 6px;
+  border: 1px solid #21262d;
+  font-family: Monaco, Menlo, 'Courier New', monospace;
+}
+
+.command-text {
+  font-family: Monaco, Menlo, 'Courier New', monospace !important;
+  font-size: 14px;
+  background: transparent !important;
+  color: #58a6ff;
+}
+
+.command-edit {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.command-input {
+  flex: 1;
+  font-family: Monaco, Menlo, 'Courier New', monospace;
+}
+
+.explanation-section {
+  font-size: 13px;
+  margin-bottom: 12px;
+  color: #8b949e;
+}
+
+.warnings-section {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  background: #f8514911;
+  border-radius: 6px;
+  border: 1px solid #f8514933;
+}
+
+.warning-item {
+  color: #f85149;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.warning-item:last-child {
+  margin-bottom: 0;
+}
+
+.actions-section {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 12px;
+  border-top: 1px solid #30363d;
+  margin-top: 12px;
+}
+
+.actions-section .ant-btn {
+  background: #21262d;
+  border-color: #30363d;
+  color: #c9d1d9;
+}
+
+.actions-section .ant-btn:hover {
+  background: #30363d;
+  border-color: #484f58;
+  color: #c9d1d9;
+}
+
+.actions-section .ant-btn-primary {
+  background: #238636;
+  border-color: #238636;
+  color: #fff;
+}
+
+.actions-section .ant-btn-primary:hover {
+  background: #2ea043;
+  border-color: #2ea043;
+}
+
+.actions-section .ant-btn-dangerous {
+  background: #f85149;
+  border-color: #f85149;
+  color: #fff;
+}
+
+.actions-section .ant-btn-dangerous:hover {
+  background: #da3633;
+  border-color: #da3633;
+}

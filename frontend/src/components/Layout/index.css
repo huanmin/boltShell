@@ -1,0 +1,64 @@
+.app-layout {
+  height: 100vh;
+  background: #0d1117;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #161b22;
+  padding: 0 24px;
+  border-bottom: 1px solid #30363d;
+  z-index: 10;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logo {
+  font-size: 24px;
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #58a6ff;
+  letter-spacing: 0.5px;
+}
+
+.app-header .ant-btn {
+  background: #21262d;
+  border-color: #30363d;
+  color: #c9d1d9;
+}
+
+.app-header .ant-btn:hover {
+  background: #30363d;
+  border-color: #58a6ff;
+  color: #58a6ff;
+}
+
+.app-sider {
+  background: #0d1117 !important;
+  border-right: none !important;
+}
+
+.app-sider .ant-layout-sider-children {
+  display: flex;
+  flex-direction: column;
+}
+
+.main-layout {
+  background: #0d1117;
+}
+
+.main-content {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  border-left: 2px solid #30363d;
+}

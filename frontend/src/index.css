@@ -1,0 +1,236 @@
+@import './components/Layout/index.css';
+@import './components/Sidebar/index.css';
+@import './components/Terminal/index.css';
+@import './components/Terminal/AiCommandCard.css';
+@import './components/FileManager/FileManager.css';
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #0d1117;
+  color: #c9d1d9;
+}
+
+/* Ant Design 暗色主题覆盖 */
+.ant-tabs-tab {
+  padding: 8px 12px !important;
+}
+
+/* 全局输入框样式 */
+.ant-input {
+  background: #0d1117 !important;
+  border-color: #30363d;
+  color: #c9d1d9 !important;
+}
+
+.ant-input:hover {
+  border-color: #484f58;
+}
+
+.ant-input:focus,
+.ant-input-focused {
+  border-color: #58a6ff !important;
+  background: #0d1117 !important;
+  color: #c9d1d9 !important;
+}
+
+.ant-input::placeholder {
+  color: #6e7681;
+}
+
+.ant-input-affix-wrapper {
+  background: #0d1117 !important;
+  border-color: #30363d;
+}
+
+.ant-input-affix-wrapper:hover {
+  border-color: #484f58;
+}
+
+.ant-input-affix-wrapper-focused {
+  border-color: #58a6ff !important;
+  background: #0d1117 !important;
+}
+
+.ant-input-affix-wrapper .ant-input {
+  background: transparent !important;
+  color: #c9d1d9 !important;
+}
+
+/* 模态框样式 */
+.ant-modal-content {
+  background: #161b22;
+  border: 1px solid #30363d;
+}
+
+.ant-modal-header {
+  background: #161b22;
+  border-bottom: 1px solid #30363d;
+}
+
+.ant-modal-title {
+  color: #c9d1d9;
+}
+
+.ant-modal-close-x {
+  color: #8b949e;
+}
+
+.ant-modal-close:hover {
+  background: #21262d;
+}
+
+.ant-modal-close-x:hover {
+  color: #c9d1d9;
+}
+
+.ant-modal-body {
+  color: #c9d1d9;
+}
+
+.ant-modal-footer {
+  border-top: 1px solid #30363d;
+}
+
+.ant-modal-footer .ant-btn {
+  background: #21262d;
+  border-color: #30363d;
+  color: #c9d1d9;
+}
+
+.ant-modal-footer .ant-btn:hover {
+  background: #30363d;
+  border-color: #484f58;
+}
+
+.ant-modal-footer .ant-btn-primary {
+  background: #238636;
+  border-color: #238636;
+  color: #fff;
+}
+
+.ant-modal-footer .ant-btn-primary:hover {
+  background: #2ea043;
+  border-color: #2ea043;
+}
+
+/* 下拉菜单样式 */
+.ant-dropdown-menu {
+  background: #161b22;
+  border: 1px solid #30363d;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.ant-dropdown-menu-item {
+  color: #c9d1d9;
+}
+
+.ant-dropdown-menu-item:hover {
+  background: #21262d;
+}
+
+.ant-dropdown-menu-item-danger {
+  color: #f85149 !important;
+}
+
+.ant-dropdown-menu-item-danger:hover {
+  background: #f8514922;
+}
+
+/* 空状态 */
+.ant-empty-description {
+  color: #6e7681;
+}
+
+/* 滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0d1117;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #30363d;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #484f58;
+}
+
+/* 选择文本 */
+::selection {
+  background: #1f6feb55;
+}
+
+/* 链接 */
+a {
+  color: #58a6ff;
+}
+
+a:hover {
+  color: #79c0ff;
+}
+
+/* 按钮 */
+.ant-btn {
+  background: #21262d;
+  border-color: #30363d;
+  color: #c9d1d9;
+}
+
+.ant-btn:hover {
+  background: #30363d;
+  border-color: #484f58;
+  color: #c9d1d9;
+}
+
+.ant-btn-primary {
+  background: #238636;
+  border-color: #238636;
+  color: #fff;
+}
+
+.ant-btn-primary:hover {
+  background: #2ea043;
+  border-color: #2ea043;
+}
+
+.ant-btn-dangerous {
+  background: #f85149;
+  border-color: #f85149;
+  color: #fff;
+}
+
+.ant-btn-dangerous:hover {
+  background: #da3633;
+  border-color: #da3633;
+}
+
+/* 确认框 */
+.ant-popover .ant-popover-inner {
+  background: #161b22;
+  border: 1px solid #30363d;
+}
+
+.ant-popover-message-title {
+  color: #c9d1d9;
+}
+
+.ant-popover-message-icon {
+  color: #f0883e;
+}
