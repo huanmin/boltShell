@@ -15,6 +15,7 @@ import {
 } from '@ant-design/icons';
 import type { MenuProps, TreeDataNode, TreeProps } from 'antd';
 import { fileApi, type FileInfo } from '../../api';
+import '../common/ModalStyles.css';
 import './FileManager.css';
 
 interface FileManagerProps {
@@ -38,8 +39,6 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
   const [newDirName, setNewDirName] = useState('');
   const [mkdirParentPath, setMkdirParentPath] = useState('/');
   const [currentPath, setCurrentPath] = useState('/');
-  const [selectedFile, setSelectedFile] = useState<FileInfo | null>(null);
-  const [hoveredFile, setHoveredFile] = useState<FileInfo | null>(null);
 
   // 加载目录内容
   const loadDirectory = useCallback(async (path: string): Promise<FileTreeNode[]> => {
@@ -147,21 +146,23 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
     setCurrentPath(path);
   };
 
-  // 下载
-  const handleDownload = (file: FileInfo) => {
-    const url = fileApi.downloadUrl(connectionId, file.path, true);
+  // 下载 - 在 FileItem 组件的菜单中使用
+  const handleDownload = useCallback((file: FileInfo) => {
+    const url = fileApi.downloadUrl(connectionId, file.path, file.isDirectory);
     window.open(url, '_blank');
     message.success('开始下载...');
-  };
+  }, [connectionId]);
 
   // 删除
   const handleDelete = async (file: FileInfo) => {
     Modal.confirm({
       title: '确认删除',
-      content: `确定要删除文件夹 "${file.name}" 吗？此操作不可恢复！`,
+      content: `确定要删除 "${file.name}" 吗？${file.isDirectory ? '文件夹内所有内容都将被删除！' : ''}此操作不可恢复！`,
       okText: '删除',
       okButtonProps: { danger: true },
       cancelText: '取消',
+      centered: true,
+      className: 'confirm-modal-dark',
       onOk: async () => {
         try {
           const res = await fileApi.delete(connectionId, file.path, true);
@@ -283,17 +284,13 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  // 文件项右键菜单 - 鼠标悬停在文件上时显示
+  // 文件项右键菜单 - 每个文件独立的菜单
   const getFileItemContextMenu = (file: FileInfo): MenuProps['items'] => [
     {
       key: 'download',
       icon: <DownloadOutlined />,
       label: '下载',
-      onClick: () => {
-        const url = fileApi.downloadUrl(connectionId, file.path, file.isDirectory);
-        window.open(url, '_blank');
-        message.success('开始下载...');
-      },
+      onClick: () => handleDownload(file),
     },
     {
       type: 'divider',
@@ -307,7 +304,7 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
     },
   ];
 
-  // 空白区域右键菜单 - 鼠标悬停在空白区域时显示
+  // 空白区域右键菜单
   const getEmptyContextMenu = (): MenuProps['items'] => [
     {
       key: 'upload',
@@ -355,6 +352,42 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
   // 禁用浏览器默认右键菜单
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
+  };
+
+  // 文件项组件 - 每个文件有独立的 Dropdown
+  const FileItem: React.FC<{ file: FileInfo }> = ({ file }) => {
+    return (
+      <Dropdown 
+        menu={{ items: getFileItemContextMenu(file) }} 
+        trigger={['contextMenu']}
+      >
+        <div 
+          className={`file-item ${file.isDirectory ? 'folder' : 'file'}`}
+          onDoubleClick={() => {
+            if (file.isDirectory) {
+              const path = file.path.startsWith('//') ? file.path.substring(1) : file.path;
+              setCurrentPath(path);
+              setSelectedKey(path);
+              setExpandedKeys(prev => 
+                prev.includes(path) ? prev : [...prev, path]
+              );
+            }
+          }}
+        >
+          <div className="file-icon">
+            {file.isDirectory ? (
+              <FolderOpenOutlined style={{ fontSize: 32, color: '#f0883e' }} />
+            ) : (
+              <FileOutlined style={{ fontSize: 32, color: '#8b949e' }} />
+            )}
+          </div>
+          <div className="file-name">{file.name}</div>
+          <div className="file-info">
+            {file.isDirectory ? '' : formatSize(file.size)}
+          </div>
+        </div>
+      </Dropdown>
+    );
   };
 
   return (
@@ -442,7 +475,7 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
                 showLine={{ showLeafIcon: false }}
                 showIcon={false}
                 expandedKeys={expandedKeys}
-                onExpand={setExpandedKeys}
+                onExpand={(keys) => setExpandedKeys(keys as string[])}
                 loadData={onLoadData}
                 treeData={treeData}
                 selectedKeys={selectedKey ? [selectedKey] : []}
@@ -460,7 +493,7 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
           </div>
           <Spin spinning={fileLoading}>
             {/* 空目录 */}
-            {currentFiles.length === 0 && !fileLoading && currentPath === '/' ? (
+            {currentFiles.length === 0 && !fileLoading ? (
               <Dropdown 
                 menu={{ items: getEmptyContextMenu() }} 
                 trigger={['contextMenu']}
@@ -470,66 +503,33 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
                 </div>
               </Dropdown>
             ) : (
-              <Dropdown 
-                menu={{ items: hoveredFile ? getFileItemContextMenu(hoveredFile) : getEmptyContextMenu() }} 
-                trigger={['contextMenu']}
-              >
-                <div className="file-grid-wrapper">
-                  <div className="file-grid">
-                    {/* 返回上级 ".." */}
-                    {currentPath !== '/' && (
-                      <div 
-                        className="file-item folder"
-                        onMouseEnter={() => setHoveredFile(null)}
-                        onDoubleClick={() => {
-                          // 返回上级目录
-                          const parts = currentPath.split('/').filter(Boolean);
-                          const parentPath = '/' + parts.slice(0, -1).join('/');
-                          setCurrentPath(parentPath || '/');
-                          setSelectedKey(parentPath || null);
-                        }}
-                      >
-                        <div className="file-icon">
-                          <FolderOpenOutlined style={{ fontSize: 32, color: '#f0883e' }} />
-                        </div>
-                        <div className="file-name">..</div>
-                        <div className="file-info"></div>
+              <div className="file-grid-wrapper">
+                <div className="file-grid">
+                  {/* 返回上级 ".." */}
+                  {currentPath !== '/' && (
+                    <div 
+                      className="file-item folder"
+                      onDoubleClick={() => {
+                        // 返回上级目录
+                        const parts = currentPath.split('/').filter(Boolean);
+                        const parentPath = '/' + parts.slice(0, -1).join('/');
+                        setCurrentPath(parentPath || '/');
+                        setSelectedKey(parentPath || null);
+                      }}
+                    >
+                      <div className="file-icon">
+                        <FolderOpenOutlined style={{ fontSize: 32, color: '#f0883e' }} />
                       </div>
-                    )}
-                    {/* 文件列表 */}
-                    {currentFiles.map(file => (
-                      <div 
-                        key={file.path} 
-                        className={`file-item ${file.isDirectory ? 'folder' : 'file'}`}
-                        onMouseEnter={() => setHoveredFile(file)}
-                        onMouseLeave={() => setHoveredFile(null)}
-                        onDoubleClick={() => {
-                          if (file.isDirectory) {
-                            const path = file.path.startsWith('//') ? file.path.substring(1) : file.path;
-                            setCurrentPath(path);
-                            setSelectedKey(path);
-                            setExpandedKeys(prev => 
-                              prev.includes(path) ? prev : [...prev, path]
-                            );
-                          }
-                        }}
-                      >
-                        <div className="file-icon">
-                          {file.isDirectory ? (
-                            <FolderOpenOutlined style={{ fontSize: 32, color: '#f0883e' }} />
-                          ) : (
-                            <FileOutlined style={{ fontSize: 32, color: '#8b949e' }} />
-                          )}
-                        </div>
-                        <div className="file-name">{file.name}</div>
-                        <div className="file-info">
-                          {file.isDirectory ? '' : formatSize(file.size)}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      <div className="file-name">..</div>
+                      <div className="file-info"></div>
+                    </div>
+                  )}
+                  {/* 文件列表 - 每个文件独立的 Dropdown */}
+                  {currentFiles.map(file => (
+                    <FileItem key={file.path} file={file} />
+                  ))}
                 </div>
-              </Dropdown>
+              </div>
             )}
           </Spin>
         </div>
@@ -546,6 +546,7 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
         }}
         okText="创建"
         cancelText="取消"
+        centered
       >
         <Input
           placeholder="请输入文件夹名称"

@@ -2,6 +2,7 @@ import { Modal, Form, Input, Select, InputNumber, message, Checkbox, Button, Spa
 import { useEffect, useState } from 'react';
 import { connectionApi } from '../../api';
 import { useAppStore } from '../../stores/appStore';
+import '../common/ModalStyles.css';
 
 interface AddConnectionModalProps {
   open: boolean;
@@ -88,6 +89,8 @@ const AddConnectionModal: React.FC<AddConnectionModalProps> = ({ open, onClose }
       onCancel={onClose}
       footer={null}
       width={500}
+      centered
+      className="connection-modal"
     >
       <Form
         form={form}

@@ -368,14 +368,29 @@
   background: #161b22;
   border: 1px solid #30363d;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  border-radius: 8px;
+  padding: 4px 0;
+  min-width: 160px;
 }
 
 .ant-dropdown-menu-item {
   color: #c9d1d9;
+  padding: 8px 16px;
+  border-radius: 0;
+  transition: all 0.15s ease;
 }
 
 .ant-dropdown-menu-item:hover {
   background: #21262d;
+}
+
+.ant-dropdown-menu-item .anticon {
+  margin-right: 8px;
+  color: #8b949e;
+}
+
+.ant-dropdown-menu-item:hover .anticon {
+  color: #58a6ff;
 }
 
 .ant-dropdown-menu-item-danger {
@@ -383,5 +398,68 @@
 }
 
 .ant-dropdown-menu-item-danger:hover {
-  background: #f8514922;
+  background: rgba(248, 81, 73, 0.1);
+}
+
+.ant-dropdown-menu-item-danger .anticon {
+  color: #f85149 !important;
+}
+
+.ant-dropdown-menu-divider {
+  background: #30363d;
+  margin: 4px 0;
+}
+
+/* 确认对话框暗色主题 */
+.confirm-modal-dark .ant-modal-content {
+  background: #161b22;
+  border: 1px solid #30363d;
+}
+
+.confirm-modal-dark .ant-modal-header {
+  background: #161b22;
+  border-bottom: 1px solid #30363d;
+}
+
+.confirm-modal-dark .ant-modal-title {
+  color: #c9d1d9;
+}
+
+.confirm-modal-dark .ant-modal-body {
+  color: #8b949e;
+}
+
+.confirm-modal-dark .ant-modal-close-x {
+  color: #8b949e;
+}
+
+.confirm-modal-dark .ant-modal-close:hover {
+  background: #21262d;
+}
+
+.confirm-modal-dark .ant-modal-footer {
+  border-top: 1px solid #30363d;
+  background: #0d1117;
+}
+
+.confirm-modal-dark .ant-btn-default {
+  background: #21262d;
+  border-color: #30363d;
+  color: #c9d1d9;
+}
+
+.confirm-modal-dark .ant-btn-default:hover {
+  background: #30363d;
+  border-color: #484f58;
+  color: #f0f6fc;
+}
+
+.confirm-modal-dark .ant-btn-primary {
+  background: #da3633;
+  border-color: #da3633;
+}
+
+.confirm-modal-dark .ant-btn-primary:hover {
+  background: #f85149;
+  border-color: #f85149;
 }

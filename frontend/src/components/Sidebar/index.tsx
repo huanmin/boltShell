@@ -1,8 +1,9 @@
-import { Input, List, Button, Space, Tooltip, Spin, message } from 'antd';
+import { Input, List, Button, Space, Tooltip, Spin, message, Modal } from 'antd';
 import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, MenuFoldOutlined, MenuUnfoldOutlined, FolderOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 import { useAppStore, type Connection } from '../../stores/appStore';
 import { connectionApi } from '../../api';
+import '../common/ModalStyles.css';
 import './index.css';
 
 const statusColors = {
@@ -132,15 +133,26 @@ const Sidebar = () => {
     }
   };
 
-  const handleDelete = async (e: React.MouseEvent, id: string) => {
+  const handleDelete = async (e: React.MouseEvent, conn: Connection) => {
     e.stopPropagation();
-    try {
-      await connectionApi.delete(id);
-      useAppStore.getState().removeConnection(id);
-      message.success('删除成功');
-    } catch (error) {
-      message.error('删除失败');
-    }
+    Modal.confirm({
+      title: '确认删除',
+      content: `确定要删除连接 "${conn.name}" 吗？此操作不可恢复。`,
+      okText: '删除',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      centered: true,
+      className: 'confirm-modal-dark',
+      onOk: async () => {
+        try {
+          await connectionApi.delete(conn.id);
+          useAppStore.getState().removeConnection(conn.id);
+          message.success('删除成功');
+        } catch (error) {
+          message.error('删除失败');
+        }
+      },
+    });
   };
 
   const handleEdit = (e: React.MouseEvent, conn: Connection) => {
@@ -231,7 +243,7 @@ const Sidebar = () => {
                   size="small" 
                   icon={<DeleteOutlined />} 
                   danger
-                  onClick={(e) => handleDelete(e, conn.id)}
+                  onClick={(e) => handleDelete(e, conn)}
                   title="删除"
                 />
               </Space>
