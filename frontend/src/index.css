@@ -68,17 +68,27 @@ body {
   color: #c9d1d9 !important;
 }
 
-/* 模态框样式 - 统一背景 */
-.ant-modal-content,
-.ant-modal-wrap .ant-modal-content {
-  background: #161b22 !important;
-  border: 1px solid #30363d;
+/* 模态框样式 - 统一背景，去掉白边 */
+.ant-modal-wrap,
+.ant-modal-mask {
+  background: rgba(0, 0, 0, 0.65) !important;
 }
 
-.ant-modal-header,
-.ant-modal-wrap .ant-modal-header {
+.ant-modal {
+  max-width: 100vw;
+  padding: 0 !important;
+}
+
+.ant-modal-content {
+  background: #161b22 !important;
+  border: 1px solid #30363d;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+
+.ant-modal-header {
   background: #161b22 !important;
   border-bottom: 1px solid #30363d;
+  padding: 16px 24px;
 }
 
 .ant-modal-title {

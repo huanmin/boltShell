@@ -245,11 +245,6 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
-.file-item.selected {
-  background: #1f6feb22 !important;
-  border-color: #58a6ff !important;
-}
-
 .file-icon {
   margin-bottom: 10px;
 }
