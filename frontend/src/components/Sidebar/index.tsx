@@ -3,7 +3,6 @@ import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, MenuFoldOut
 import { useEffect, useState } from 'react';
 import { useAppStore, type Connection } from '../../stores/appStore';
 import { connectionApi } from '../../api';
-import '../common/ModalStyles.css';
 import './index.css';
 
 const statusColors = {

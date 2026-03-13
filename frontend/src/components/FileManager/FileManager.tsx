@@ -15,7 +15,6 @@ import {
 } from '@ant-design/icons';
 import type { MenuProps, TreeDataNode, TreeProps } from 'antd';
 import { fileApi, type FileInfo } from '../../api';
-import '../common/ModalStyles.css';
 import './FileManager.css';
 
 interface FileManagerProps {
@@ -140,13 +139,12 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
 
   // 点击节点
   const handleNodeClick = (fileInfo: FileInfo) => {
-    // 修复路径：确保不以 // 开头
     const path = fileInfo.path.startsWith('//') ? fileInfo.path.substring(1) : fileInfo.path;
     setSelectedKey(path);
     setCurrentPath(path);
   };
 
-  // 下载 - 在 FileItem 组件的菜单中使用
+  // 下载
   const handleDownload = useCallback((file: FileInfo) => {
     const url = fileApi.downloadUrl(connectionId, file.path, file.isDirectory);
     window.open(url, '_blank');
@@ -154,7 +152,7 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
   }, [connectionId]);
 
   // 删除
-  const handleDelete = async (file: FileInfo) => {
+  const handleDelete = useCallback((file: FileInfo) => {
     Modal.confirm({
       title: '确认删除',
       content: `确定要删除 "${file.name}" 吗？${file.isDirectory ? '文件夹内所有内容都将被删除！' : ''}此操作不可恢复！`,
@@ -162,7 +160,6 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
       okButtonProps: { danger: true },
       cancelText: '取消',
       centered: true,
-      className: 'confirm-modal-dark',
       onOk: async () => {
         try {
           const res = await fileApi.delete(connectionId, file.path, true);
@@ -178,7 +175,7 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
         }
       },
     });
-  };
+  }, [connectionId, currentPath]);
 
   // 新建文件夹
   const handleMkdir = async () => {
@@ -188,7 +185,6 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
     }
 
     try {
-      // 修复路径拼接
       const path = mkdirParentPath === '/' 
         ? `/${newDirName}` 
         : `${mkdirParentPath}/${newDirName}`;
@@ -209,12 +205,12 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
   };
 
   // 上传文件
-  const handleUpload = async (file: File) => {
+  const handleUpload = useCallback(async (file: File) => {
     try {
       const res = await fileApi.upload(connectionId, currentPath, file);
       if (res.data.code === 0) {
         message.success('上传成功');
-        loadCurrentFiles(currentPath); // 刷新文件列表
+        loadCurrentFiles(currentPath);
       } else {
         message.error(res.data.message || '上传失败');
       }
@@ -222,7 +218,7 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
       message.error(error?.response?.data?.message || '上传失败');
     }
     return false;
-  };
+  }, [connectionId, currentPath]);
 
   // 展开/收缩全部
   const handleExpandAll = async () => {
@@ -252,7 +248,7 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
   const [currentFiles, setCurrentFiles] = useState<FileInfo[]>([]);
   const [fileLoading, setFileLoading] = useState(false);
 
-  const loadCurrentFiles = async (path: string) => {
+  const loadCurrentFiles = useCallback(async (path: string) => {
     setFileLoading(true);
     try {
       const res = await fileApi.list(connectionId, path);
@@ -268,13 +264,13 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
     } finally {
       setFileLoading(false);
     }
-  };
+  }, [connectionId]);
 
   useEffect(() => {
     if (currentPath) {
       loadCurrentFiles(currentPath);
     }
-  }, [currentPath, connectionId]);
+  }, [currentPath, connectionId, loadCurrentFiles]);
 
   const formatSize = (bytes: number) => {
     if (bytes === 0) return '-';
@@ -284,7 +280,7 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  // 文件项右键菜单 - 每个文件独立的菜单
+  // 文件项右键菜单
   const getFileItemContextMenu = (file: FileInfo): MenuProps['items'] => [
     {
       key: 'download',
@@ -305,7 +301,7 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
   ];
 
   // 空白区域右键菜单
-  const getEmptyContextMenu = (): MenuProps['items'] => [
+  const getEmptyContextMenu = useCallback((): MenuProps['items'] => [
     {
       key: 'upload',
       icon: <UploadOutlined />,
@@ -347,14 +343,9 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
         loadRootDirectory();
       },
     },
-  ];
+  ], [currentPath, handleUpload]);
 
-  // 禁用浏览器默认右键菜单
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-  };
-
-  // 文件项组件 - 每个文件有独立的 Dropdown
+  // 文件项组件
   const FileItem: React.FC<{ file: FileInfo }> = ({ file }) => {
     return (
       <Dropdown 
@@ -385,6 +376,20 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
           <div className="file-info">
             {file.isDirectory ? '' : formatSize(file.size)}
           </div>
+        </div>
+      </Dropdown>
+    );
+  };
+
+  // 空白区域包装器 - 带右键菜单
+  const ContextMenuWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    return (
+      <Dropdown 
+        menu={{ items: getEmptyContextMenu() }} 
+        trigger={['contextMenu']}
+      >
+        <div style={{ width: '100%', height: '100%' }}>
+          {children}
         </div>
       </Dropdown>
     );
@@ -486,51 +491,46 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
         </div>
 
         {/* 右侧：文件列表 */}
-        <div className="file-content" onContextMenu={handleContextMenu}>
+        <div className="file-content">
           <div className="file-content-header">
             <span className="current-path">📁 {currentPath}</span>
             <span className="file-count">{currentFiles.length} 项</span>
           </div>
           <Spin spinning={fileLoading}>
-            {/* 空目录 */}
-            {currentFiles.length === 0 && !fileLoading ? (
-              <Dropdown 
-                menu={{ items: getEmptyContextMenu() }} 
-                trigger={['contextMenu']}
-              >
+            <ContextMenuWrapper>
+              {currentFiles.length === 0 && !fileLoading ? (
                 <div className="empty-area">
                   <Empty description="空目录，右键上传文件" image={Empty.PRESENTED_IMAGE_SIMPLE} />
                 </div>
-              </Dropdown>
-            ) : (
-              <div className="file-grid-wrapper">
-                <div className="file-grid">
-                  {/* 返回上级 ".." */}
-                  {currentPath !== '/' && (
-                    <div 
-                      className="file-item folder"
-                      onDoubleClick={() => {
-                        // 返回上级目录
-                        const parts = currentPath.split('/').filter(Boolean);
-                        const parentPath = '/' + parts.slice(0, -1).join('/');
-                        setCurrentPath(parentPath || '/');
-                        setSelectedKey(parentPath || null);
-                      }}
-                    >
-                      <div className="file-icon">
-                        <FolderOpenOutlined style={{ fontSize: 32, color: '#f0883e' }} />
+              ) : (
+                <div className="file-grid-wrapper">
+                  <div className="file-grid">
+                    {/* 返回上级 */}
+                    {currentPath !== '/' && (
+                      <div 
+                        className="file-item folder"
+                        onDoubleClick={() => {
+                          const parts = currentPath.split('/').filter(Boolean);
+                          const parentPath = '/' + parts.slice(0, -1).join('/');
+                          setCurrentPath(parentPath || '/');
+                          setSelectedKey(parentPath || null);
+                        }}
+                      >
+                        <div className="file-icon">
+                          <FolderOpenOutlined style={{ fontSize: 32, color: '#f0883e' }} />
+                        </div>
+                        <div className="file-name">..</div>
+                        <div className="file-info"></div>
                       </div>
-                      <div className="file-name">..</div>
-                      <div className="file-info"></div>
-                    </div>
-                  )}
-                  {/* 文件列表 - 每个文件独立的 Dropdown */}
-                  {currentFiles.map(file => (
-                    <FileItem key={file.path} file={file} />
-                  ))}
+                    )}
+                    {/* 文件列表 */}
+                    {currentFiles.map(file => (
+                      <FileItem key={file.path} file={file} />
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </ContextMenuWrapper>
           </Spin>
         </div>
       </div>

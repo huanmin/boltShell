@@ -2,7 +2,6 @@ import { Modal, Form, Input, Select, InputNumber, message, Checkbox, Button, Spa
 import { useEffect, useState } from 'react';
 import { connectionApi } from '../../api';
 import { useAppStore, type Connection } from '../../stores/appStore';
-import '../common/ModalStyles.css';
 
 interface ConnectionModalProps {
   open: boolean;
