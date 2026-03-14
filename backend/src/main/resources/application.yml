@@ -1,6 +1,6 @@
 server:
   port: 18080
-  address: 127.0.0.1
+  # address: 127.0.0.1  # 注释掉以监听所有接口
 
 spring:
   application:
