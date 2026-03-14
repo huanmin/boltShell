@@ -3,6 +3,7 @@ package com.aisshtool.controller;
 import com.aisshtool.model.Connection;
 import com.aisshtool.model.ErrorCode;
 import com.aisshtool.service.CredentialService;
+import com.aisshtool.ssh.SshClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -36,6 +37,9 @@ class ConnectionControllerTest {
 
     @MockBean
     private CredentialService credentialService;
+
+    @MockBean
+    private SshClient sshClient;
 
     private Connection testConnection;
 

@@ -1,6 +1,7 @@
 package com.aisshtool.websocket;
 
 import com.aisshtool.security.DangerCommandChecker;
+import com.aisshtool.service.AiService;
 import com.aisshtool.service.CredentialService;
 import com.aisshtool.ssh.SshClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -10,7 +11,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.socket.*;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -19,22 +22,24 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 @Component
 public class SshWebSocketHandler implements WebSocketHandler {
-    
+
     private final SshClient sshClient;
     private final CredentialService credentialService;
     private final DangerCommandChecker dangerChecker;
+    private final AiService aiService;
     private final ObjectMapper objectMapper;
-    
+
     // Active WebSocket sessions
     private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
     // WebSocket session ID -> SSH shell
     private final Map<String, Session.Shell> shells = new ConcurrentHashMap<>();
-    
-    public SshWebSocketHandler(SshClient sshClient, CredentialService credentialService, 
-                               DangerCommandChecker dangerChecker) {
+
+    public SshWebSocketHandler(SshClient sshClient, CredentialService credentialService,
+                               DangerCommandChecker dangerChecker, AiService aiService) {
         this.sshClient = sshClient;
         this.credentialService = credentialService;
         this.dangerChecker = dangerChecker;
+        this.aiService = aiService;
         this.objectMapper = new ObjectMapper();
     }
     
@@ -129,24 +134,52 @@ public class SshWebSocketHandler implements WebSocketHandler {
         if (query == null) query = message;
         log.info("AI chat request: {}", message);
 
-        // TODO: Integrate with Spring AI
-        // For now, return a mock response
-        String suggestedCommand = generateMockCommand(message);
+        // Call AI service
+        Optional<AiService.ACommandResult> resultOpt = aiService.generateCommand(message);
 
-        // Check for dangerous patterns
-        DangerCommandChecker.DangerCheckResult checkResult = dangerChecker.check(suggestedCommand);
+        if (resultOpt.isPresent()) {
+            AiService.ACommandResult result = resultOpt.get();
 
-        sendMessage(session, Map.of(
-                "type", "ai.response",
-                "payload", Map.of(
-                        "commandId", "cmd-" + System.currentTimeMillis(),
-                        "query", query,
-                        "command", suggestedCommand,
-                        "explanation", "根据您的描述生成的命令",
-                        "riskLevel", checkResult.level().getCode(),
-                        "warnings", checkResult.warnings()
-                )
-        ));
+            // Check for dangerous patterns
+            DangerCommandChecker.DangerCheckResult checkResult = dangerChecker.check(result.command());
+
+            // Combine AI warnings with danger checker warnings
+            List<String> allWarnings = new java.util.ArrayList<>(result.warnings());
+            allWarnings.addAll(checkResult.warnings());
+
+            // Use the higher risk level
+            String riskLevel = getHigherRiskLevel(result.riskLevel(), checkResult.level().getCode());
+
+            sendMessage(session, Map.of(
+                    "type", "ai.response",
+                    "payload", Map.of(
+                            "commandId", "cmd-" + System.currentTimeMillis(),
+                            "query", query,
+                            "command", result.command(),
+                            "explanation", result.explanation(),
+                            "riskLevel", riskLevel,
+                            "warnings", allWarnings
+                    )
+            ));
+        } else {
+            // No AI config or API call failed
+            sendError(session, "AI_CONFIG_ERROR", "请先在设置中配置 AI 模型");
+        }
+    }
+
+    private String getHigherRiskLevel(String level1, String level2) {
+        int priority1 = getRiskPriority(level1);
+        int priority2 = getRiskPriority(level2);
+        return priority1 >= priority2 ? level1 : level2;
+    }
+
+    private int getRiskPriority(String level) {
+        return switch (level.toLowerCase()) {
+            case "critical" -> 4;
+            case "high" -> 3;
+            case "medium" -> 2;
+            default -> 1;
+        };
     }
     
     private void handleAiConfirm(WebSocketSession session, Map<String, Object> payload) throws IOException {
@@ -235,24 +268,5 @@ public class SshWebSocketHandler implements WebSocketHandler {
         });
         readerThread.setDaemon(true);
         readerThread.start();
-    }
-    
-    private String generateMockCommand(String message) {
-        // Simple mock command generation based on keywords
-        if (message.contains("最大") || message.contains("大文件")) {
-            return "du -ah . | sort -rh | head -n 10";
-        } else if (message.contains("进程") || message.contains("cpu")) {
-            return "ps aux --sort=-%cpu | head -n 10";
-        } else if (message.contains("内存")) {
-            return "free -h";
-        } else if (message.contains("磁盘") || message.contains("空间")) {
-            return "df -h";
-        } else if (message.contains("日志")) {
-            return "tail -n 100 /var/log/syslog";
-        } else if (message.contains("端口") || message.contains("网络")) {
-            return "netstat -tuln";
-        } else {
-            return "ls -la";
-        }
     }
 }
