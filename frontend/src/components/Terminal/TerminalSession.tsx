@@ -9,7 +9,7 @@ interface TerminalSessionProps {
   isActive: boolean;
 }
 
-const WS_BASE = 'ws://localhost:18080';
+const WS_BASE = 'ws://127.0.0.1:18080';
 
 const TerminalSession = ({ connection, isActive }: TerminalSessionProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
