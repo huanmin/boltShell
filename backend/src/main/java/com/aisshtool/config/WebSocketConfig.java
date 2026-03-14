@@ -10,22 +10,22 @@ import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
 
 /**
  * WebSocket configuration
- * 
+ *
  * CORS is restricted to the configured frontend URL for security.
  */
 @Configuration
 @EnableWebSocket
 @RequiredArgsConstructor
 public class WebSocketConfig implements WebSocketConfigurer {
-    
+
     private final SshWebSocketHandler sshWebSocketHandler;
-    
+
     @Value("${app.frontend.url:http://localhost:5173}")
     private String frontendUrl;
-    
+
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(sshWebSocketHandler, "/ws")
-                .setAllowedOrigins(frontendUrl);
+                .setAllowedOrigins(frontendUrl, "http://localhost:5173", "http://127.0.0.1:5173", "ws://localhost:5173");
     }
 }
