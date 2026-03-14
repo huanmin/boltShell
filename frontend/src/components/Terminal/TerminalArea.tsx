@@ -1,11 +1,10 @@
-import { Tabs, Button } from 'antd';
-import { PlusOutlined, CloseOutlined, FolderOutlined, CodeOutlined } from '@ant-design/icons';
+import { Tabs } from 'antd';
+import { CloseOutlined, FolderOutlined, CodeOutlined } from '@ant-design/icons';
 import { useEffect, useRef, useState } from 'react';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { useAppStore } from '../../stores/appStore';
-import AiCommandCard from './AiCommandCard';
 import FileManager from '../FileManager/FileManager';
 import './index.css';
 
@@ -13,31 +12,23 @@ const WS_BASE = 'ws://localhost:18080';
 
 const TerminalArea = () => {
   const terminalRef = useRef<HTMLDivElement>(null);
-  const aiCardRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
-  
-  // 用 ref 追踪当前输入行（避免 state 异步问题）
-  const currentLineRef = useRef('');
-  
-  // AI 建议卡片
-  const [aiCard, setAiCard] = useState<{
-    visible: boolean;
-    command: string;
-    explanation: string;
-    riskLevel: string;
-    warnings: string[];
-  } | null>(null);
-  // 编辑模式
-  const [editingCommand, setEditingCommand] = useState(false);
-  const [editedCommand, setEditedCommand] = useState('');
 
-  const { 
-    sessions, 
-    activeSessionId, 
-    pendingCommand, 
-    setPendingCommand,
+  // 当前输入行
+  const currentLineRef = useRef('');
+  // 中文输入历史
+  const chineseHistoryRef = useRef<string[]>([]);
+  const historyIndexRef = useRef(-1);
+  // 是否在等待AI响应
+  const waitingForAiRef = useRef(false);
+  // AI建议的命令（用于执行）
+  const suggestedCommandRef = useRef<string | null>(null);
+
+  const {
+    sessions,
+    activeSessionId,
     connections,
     removeSession,
     setActiveSession
@@ -91,6 +82,7 @@ const TerminalArea = () => {
     // 自适应大小
     const handleResize = () => {
       fitAddon.fit();
+      xterm.scrollToBottom();
     };
     window.addEventListener('resize', handleResize);
     setTimeout(handleResize, 100);
@@ -100,10 +92,20 @@ const TerminalArea = () => {
     };
   }, []);
 
+  // 当切换 tab 时重新适配终端大小
+  useEffect(() => {
+    if (!isFileManager && fitAddonRef.current && xtermRef.current) {
+      setTimeout(() => {
+        fitAddonRef.current?.fit();
+        xtermRef.current?.scrollToBottom();
+      }, 100);
+    }
+  }, [isFileManager]);
+
   // 连接 WebSocket (仅终端会话)
   useEffect(() => {
     if (!activeSession || !activeConnection || !xtermRef.current) return;
-    
+
     // 文件管理器不需要 WebSocket
     if (activeSession.type === 'file') return;
 
@@ -123,40 +125,45 @@ const TerminalArea = () => {
 
     ws.onopen = () => {
       xterm.writeln('\x1b[32m✓ WebSocket 连接已建立\x1b[0m');
+      // 适配终端大小
+      setTimeout(() => {
+        fitAddonRef.current?.fit();
+      }, 100);
     };
 
     ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data);
-        
+
         switch (msg.type) {
           case 'connection.status':
             if (msg.payload.status === 'connected') {
               xterm.writeln('\x1b[32m✓ SSH 连接成功\x1b[0m');
               xterm.writeln('');
+              // 连接成功后适配并滚动到底部
+              setTimeout(() => {
+                fitAddonRef.current?.fit();
+                xterm.scrollToBottom();
+              }, 100);
             } else if (msg.payload.status === 'connecting') {
               xterm.write('\x1b[33m正在建立 SSH 连接...\x1b[0m');
             }
             break;
-          
+
           case 'terminal.output':
             // 真实 SSH 输出
             xterm.write(msg.payload.data);
             break;
-          
+
           case 'ai.response':
-            // AI 建议响应 - 显示卡片
-            setAiCard({
-              visible: true,
-              command: msg.payload.command,
-              explanation: msg.payload.explanation,
-              riskLevel: msg.payload.riskLevel,
-              warnings: msg.payload.warnings || [],
-            });
+            // AI 响应 - 直接在终端显示
+            waitingForAiRef.current = false;
+            displayAiResponse(xterm, msg.payload);
             break;
-          
+
           case 'error':
             xterm.writeln(`\x1b[31m✗ 错误: ${msg.payload.message}\x1b[0m`);
+            waitingForAiRef.current = false;
             break;
         }
       } catch (e) {
@@ -180,74 +187,151 @@ const TerminalArea = () => {
     };
   }, [activeSessionId, activeConnection]);
 
-  // 监听待执行的命令
-  useEffect(() => {
-    if (pendingCommand && wsRef.current && xtermRef.current) {
-      const ws = wsRef.current;
-      
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({
-          type: 'ai.confirm',
-          payload: {
-            action: 'execute',
-            command: pendingCommand,
-            commandId: 'cmd-' + Date.now(),
-          }
-        }));
-      }
-      setPendingCommand(null);
-      setAiCard(null);
+  // 显示 AI 响应
+  const displayAiResponse = (xterm: XTerm, payload: any) => {
+    const { command, explanation, riskLevel, warnings } = payload;
+
+    xterm.writeln('');
+    xterm.writeln('\x1b[1;34m┌─────────────────────────────────────────────────\x1b[0m');
+    xterm.writeln('\x1b[1;34m│ 💡 AI 命令建议\x1b[0m');
+    xterm.writeln('\x1b[1;34m├─────────────────────────────────────────────────\x1b[0m');
+
+    // 命令
+    const cmdColor = riskLevel === 'high' || riskLevel === 'critical' ? '\x1b[1;31m' : '\x1b[1;36m';
+    xterm.writeln(`\x1b[1;34m│\x1b[0m  命令: ${cmdColor}$ ${command}\x1b[0m`);
+
+    // 说明
+    xterm.writeln(`\x1b[1;34m│\x1b[0m  说明: \x1b[90m${explanation}\x1b[0m`);
+
+    // 警告
+    if (warnings && warnings.length > 0) {
+      xterm.writeln('\x1b[1;34m│\x1b[0m');
+      warnings.forEach((w: string) => {
+        xterm.writeln(`\x1b[1;34m│\x1b[0m  \x1b[1;33m⚠️ ${w}\x1b[0m`);
+      });
     }
-  }, [pendingCommand, setPendingCommand]);
+
+    xterm.writeln('\x1b[1;34m├─────────────────────────────────────────────────\x1b[0m');
+    xterm.writeln('\x1b[1;34m│\x1b[0m  \x1b[90m提示: 按 Enter 执行命令，或修改后按 Enter 执行\x1b[0m');
+    xterm.writeln('\x1b[1;34m└─────────────────────────────────────────────────\x1b[0m');
+    xterm.writeln('');
+
+    // 保存建议的命令
+    suggestedCommandRef.current = command;
+
+    // 滚动到底部并重新适配终端大小
+    setTimeout(() => {
+      xterm.scrollToBottom();
+      fitAddonRef.current?.fit();
+    }, 50);
+  };
 
   // 处理终端输入
   const handleTerminalInput = (data: string) => {
     const ws = wsRef.current;
     const xterm = xtermRef.current;
-    
+
     if (!ws || ws.readyState !== WebSocket.OPEN || !xterm) return;
 
-    // 回车键 - 判断是命令还是中文描述
+    // 如果有待执行的AI建议命令
+    if (suggestedCommandRef.current) {
+      if (data === '\r' || data === '\n') {
+        // 执行命令
+        const cmd = suggestedCommandRef.current;
+        suggestedCommandRef.current = null;
+        ws.send(JSON.stringify({
+          type: 'terminal.input',
+          payload: { data: cmd + '\r' }
+        }));
+        return;
+      } else if (data === '\x03') {
+        // Ctrl+C 取消
+        suggestedCommandRef.current = null;
+        xterm.writeln('\x1b[33m已取消\x1b[0m');
+        return;
+      } else if (data === '\x7f' || data === '\b') {
+        // Backspace - 删除命令的最后一个字符
+        if (suggestedCommandRef.current.length > 0) {
+          suggestedCommandRef.current = suggestedCommandRef.current.slice(0, -1);
+          // 回退光标并清除字符
+          xterm.write('\b \b');
+        }
+        return;
+      } else if (data.length === 1 && data.charCodeAt(0) >= 32) {
+        // 普通字符 - 追加到命令
+        suggestedCommandRef.current += data;
+        xterm.write(data);
+        return;
+      }
+      return;
+    }
+
+    // 回车键
     if (data === '\r' || data === '\n') {
       const line = currentLineRef.current;
-      
+
       if (containsChinese(line)) {
-        // 中文描述 - 发送给 AI
-        xterm.writeln(''); // 换行
-        xterm.writeln(`\x1b[33m🔍 正在分析: ${line}\x1b[0m`);
-        
+        // 中文描述 - 发送给 AI，保存历史
+        if (line.trim()) {
+          chineseHistoryRef.current.push(line);
+          historyIndexRef.current = chineseHistoryRef.current.length;
+        }
+        xterm.writeln('');
         ws.send(JSON.stringify({
           type: 'ai.chat',
-          payload: { message: line }
+          payload: { message: line, query: line }
         }));
+        waitingForAiRef.current = true;
       } else {
-        // 英文命令 - 发送回车到终端执行
+        // 英文命令 - 发送到 SSH
         ws.send(JSON.stringify({
           type: 'terminal.input',
           payload: { data: data }
         }));
       }
-      
+
       currentLineRef.current = '';
+      historyIndexRef.current = chineseHistoryRef.current.length;
       return;
     }
 
     // Backspace / Delete
     if (data === '\x7f' || data === '\b') {
       if (currentLineRef.current.length > 0) {
+        // 先判断当前是否为中文模式
+        const isChineseMode = containsChinese(currentLineRef.current);
+        const oldLength = currentLineRef.current.length;
         currentLineRef.current = currentLineRef.current.slice(0, -1);
-        // 发送到终端删除字符
-        ws.send(JSON.stringify({
-          type: 'terminal.input',
-          payload: { data: data }
-        }));
+
+        if (isChineseMode) {
+          // 中文模式 - 清除整行并重写
+          // 先清除之前的输入
+          for (let i = 0; i < oldLength * 2; i++) {
+            xterm.write('\b');
+          }
+          for (let i = 0; i < oldLength * 2; i++) {
+            xterm.write(' ');
+          }
+          for (let i = 0; i < oldLength * 2; i++) {
+            xterm.write('\b');
+          }
+          // 写回新的内容
+          xterm.write(currentLineRef.current);
+        } else {
+          // 英文模式 - 发送到 SSH
+          ws.send(JSON.stringify({
+            type: 'terminal.input',
+            payload: { data: data }
+          }));
+        }
       }
       return;
     }
 
-    // Ctrl+C - 中断当前输入
+    // Ctrl+C - 中断
     if (data === '\x03') {
       currentLineRef.current = '';
+      historyIndexRef.current = chineseHistoryRef.current.length;
       ws.send(JSON.stringify({
         type: 'terminal.input',
         payload: { data: data }
@@ -255,7 +339,7 @@ const TerminalArea = () => {
       return;
     }
 
-    // Tab 键 - 补全
+    // Tab 键
     if (data === '\t') {
       ws.send(JSON.stringify({
         type: 'terminal.input',
@@ -264,17 +348,79 @@ const TerminalArea = () => {
       return;
     }
 
-    // 普通字符 - 追加到当前行
+    // 上箭头 - 历史记录
+    if (data === '\x1b[A') {
+      if (containsChinese(currentLineRef.current) || chineseHistoryRef.current.length > 0) {
+        if (historyIndexRef.current > 0) {
+          // 清除当前行
+          const oldLen = currentLineRef.current.length;
+          for (let i = 0; i < oldLen * 2; i++) {
+            xterm.write('\b');
+          }
+          for (let i = 0; i < oldLen * 2; i++) {
+            xterm.write(' ');
+          }
+          for (let i = 0; i < oldLen * 2; i++) {
+            xterm.write('\b');
+          }
+
+          historyIndexRef.current--;
+          const historyItem = chineseHistoryRef.current[historyIndexRef.current];
+          currentLineRef.current = historyItem;
+          xterm.write(historyItem);
+        }
+        return;
+      }
+      // 非中文模式，发送到SSH
+      ws.send(JSON.stringify({
+        type: 'terminal.input',
+        payload: { data: data }
+      }));
+      return;
+    }
+
+    // 下箭头 - 历史记录
+    if (data === '\x1b[B') {
+      if (containsChinese(currentLineRef.current) || historyIndexRef.current < chineseHistoryRef.current.length) {
+        // 清除当前行
+        const oldLen = currentLineRef.current.length;
+        for (let i = 0; i < oldLen * 2; i++) {
+          xterm.write('\b');
+        }
+        for (let i = 0; i < oldLen * 2; i++) {
+          xterm.write(' ');
+        }
+        for (let i = 0; i < oldLen * 2; i++) {
+          xterm.write('\b');
+        }
+
+        if (historyIndexRef.current < chineseHistoryRef.current.length - 1) {
+          historyIndexRef.current++;
+          const historyItem = chineseHistoryRef.current[historyIndexRef.current];
+          currentLineRef.current = historyItem;
+          xterm.write(historyItem);
+        } else {
+          historyIndexRef.current = chineseHistoryRef.current.length;
+          currentLineRef.current = '';
+        }
+        return;
+      }
+      ws.send(JSON.stringify({
+        type: 'terminal.input',
+        payload: { data: data }
+      }));
+      return;
+    }
+
+    // 普通字符
     const newLine = currentLineRef.current + data;
     currentLineRef.current = newLine;
-    
-    // 判断是否包含中文
+
     if (containsChinese(newLine)) {
-      // 中文模式：在本地终端显示，但不发送到 SSH
-      // 使用 xterm.write 显示字符
+      // 中文模式 - 在本地终端显示
       xterm.write(data);
     } else {
-      // 英文模式：发送到 SSH 终端
+      // 英文模式 - 发送到 SSH
       ws.send(JSON.stringify({
         type: 'terminal.input',
         payload: { data: data }
@@ -282,38 +428,8 @@ const TerminalArea = () => {
     }
   };
 
-  // 检测中文输入
+  // 检测中文
   const containsChinese = (text: string) => /[\u4e00-\u9fa5]/.test(text);
-
-  // 执行 AI 建议的命令
-  const handleExecuteCommand = (command: string) => {
-    setPendingCommand(command);
-  };
-
-  // 修改命令
-  const handleEditCommand = () => {
-    if (aiCard) {
-      setEditedCommand(aiCard.command);
-      setEditingCommand(true);
-    }
-  };
-
-  // 保存修改后的命令
-  const handleSaveEdit = () => {
-    if (aiCard && editedCommand) {
-      setAiCard({
-        ...aiCard,
-        command: editedCommand,
-      });
-    }
-    setEditingCommand(false);
-  };
-
-  // 取消 AI 卡片
-  const handleCancelCard = () => {
-    setAiCard(null);
-    setEditingCommand(false);
-  };
 
   // 关闭会话
   const handleCloseTab = (sessionId: string) => {
@@ -321,7 +437,7 @@ const TerminalArea = () => {
       wsRef.current.close();
     }
     removeSession(sessionId);
-    
+
     const remainingSessions = sessions.filter(s => s.id !== sessionId);
     if (remainingSessions.length > 0) {
       setActiveSession(remainingSessions[0].id);
@@ -342,55 +458,33 @@ const TerminalArea = () => {
               <span className="tab-label">
                 {s.type === 'file' ? <FolderOutlined /> : <CodeOutlined />}
                 <span className="tab-name">{s.name}</span>
-                <CloseOutlined 
-                  className="tab-close" 
+                <CloseOutlined
+                  className="tab-close"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleCloseTab(s.id);
-                  }} 
+                  }}
                 />
               </span>
             ),
           }))}
-          tabBarExtraContent={
-            <Button type="text" icon={<PlusOutlined />} size="small" disabled>
-              新建
-            </Button>
-          }
           onChange={(key) => setActiveSession(key)}
         />
       </div>
 
       {/* 内容区域 */}
       <div className="terminal-wrapper">
-        {isFileManager && activeConnection ? (
-          /* 文件管理器 */
+        {/* 文件管理器 */}
+        {isFileManager && activeConnection && (
           <FileManager connectionId={activeConnection.id} />
-        ) : (
-          /* 终端 */
-          <>
-            <div className="terminal-container" ref={terminalRef} />
-
-            {/* AI 命令卡片 - 覆盖在终端底部 */}
-            {aiCard && aiCard.visible && (
-              <div className="ai-card-overlay" ref={aiCardRef}>
-                <AiCommandCard
-                  command={aiCard.command}
-                  explanation={aiCard.explanation}
-                  riskLevel={aiCard.riskLevel}
-                  warnings={aiCard.warnings}
-                  editing={editingCommand}
-                  editedCommand={editedCommand}
-                  onExecute={handleExecuteCommand}
-                  onEdit={handleEditCommand}
-                  onSaveEdit={handleSaveEdit}
-                  onCancel={handleCancelCard}
-                  onEditChange={setEditedCommand}
-                />
-              </div>
-            )}
-          </>
         )}
+
+        {/* 终端 */}
+        <div
+          className="terminal-container"
+          ref={terminalRef}
+          style={{ display: isFileManager ? 'none' : 'block' }}
+        />
       </div>
     </div>
   );

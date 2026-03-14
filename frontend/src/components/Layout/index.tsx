@@ -3,19 +3,21 @@ import { SettingOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import Sidebar from '../Sidebar';
 import TerminalArea from '../Terminal/TerminalArea';
 import ConnectionModal from '../Connection/ConnectionModal';
+import SettingsModal from '../Settings/SettingsModal';
 import { useAppStore } from '../../stores/appStore';
 import './index.css';
 
 const { Header, Sider, Content } = Layout;
 
 const AppLayout = () => {
-  const { 
-    sidebarCollapsed, 
-    addConnectionModalOpen, 
+  const {
+    sidebarCollapsed,
+    addConnectionModalOpen,
     editConnectionModalOpen,
     editingConnection,
-    hideAddConnectionModal, 
-    hideEditConnectionModal 
+    hideAddConnectionModal,
+    hideEditConnectionModal,
+    showSettingsModal
   } = useAppStore();
 
   return (
@@ -26,7 +28,7 @@ const AppLayout = () => {
           <span className="title">AI SSH Tool</span>
         </div>
         <Space>
-          <Button icon={<SettingOutlined />} />
+          <Button icon={<SettingOutlined />} onClick={showSettingsModal} />
           <Button icon={<QuestionCircleOutlined />} />
         </Space>
       </Header>
@@ -57,12 +59,15 @@ const AppLayout = () => {
       />
       
       {/* 编辑连接弹窗 */}
-      <ConnectionModal 
-        open={editConnectionModalOpen} 
+      <ConnectionModal
+        open={editConnectionModalOpen}
         onClose={hideEditConnectionModal}
         connection={editingConnection}
         mode="edit"
       />
+
+      {/* 设置弹窗 */}
+      <SettingsModal />
     </Layout>
   );
 };

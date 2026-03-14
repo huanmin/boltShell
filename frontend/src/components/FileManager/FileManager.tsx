@@ -39,6 +39,18 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
   const [mkdirParentPath, setMkdirParentPath] = useState('/');
   const [currentPath, setCurrentPath] = useState('/');
 
+  // 规范化路径，避免双斜杠
+  const normalizePath = (path: string): string => {
+    return path.startsWith('//') ? path.substring(1) : path;
+  };
+
+  // 点击节点
+  const handleNodeClick = (fileInfo: FileInfo) => {
+    const path = normalizePath(fileInfo.path);
+    setSelectedKey(path);
+    setCurrentPath(path);
+  };
+
   // 加载目录内容
   const loadDirectory = useCallback(async (path: string): Promise<FileTreeNode[]> => {
     try {
@@ -137,13 +149,6 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
     });
   };
 
-  // 点击节点
-  const handleNodeClick = (fileInfo: FileInfo) => {
-    const path = fileInfo.path.startsWith('//') ? fileInfo.path.substring(1) : fileInfo.path;
-    setSelectedKey(path);
-    setCurrentPath(path);
-  };
-
   // 下载
   const handleDownload = useCallback((file: FileInfo) => {
     const url = fileApi.downloadUrl(connectionId, file.path, file.isDirectory);
@@ -162,7 +167,7 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
       centered: true,
       onOk: async () => {
         try {
-          const res = await fileApi.delete(connectionId, file.path, true);
+          const res = await fileApi.delete(connectionId, file.path, file.isDirectory);
           if (res.data.code === 0) {
             message.success('删除成功');
             loadRootDirectory();
@@ -185,10 +190,14 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
     }
 
     try {
-      const path = mkdirParentPath === '/' 
-        ? `/${newDirName}` 
-        : `${mkdirParentPath}/${newDirName}`;
-      
+      // 规范化路径，避免双斜杠
+      const parentPath = mkdirParentPath.endsWith('/') && mkdirParentPath !== '/'
+        ? mkdirParentPath.slice(0, -1)
+        : mkdirParentPath;
+      const path = parentPath === '/'
+        ? `/${newDirName}`
+        : `${parentPath}/${newDirName}`;
+
       const res = await fileApi.mkdir(connectionId, path);
       if (res.data.code === 0) {
         message.success('创建成功');
@@ -280,7 +289,7 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  // 文件项右键菜单
+  // 文件项右键菜单（包含文件操作和目录操作）
   const getFileItemContextMenu = (file: FileInfo): MenuProps['items'] => [
     {
       key: 'download',
@@ -289,14 +298,70 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
       onClick: () => handleDownload(file),
     },
     {
-      type: 'divider',
-    },
-    {
       key: 'delete',
       icon: <DeleteOutlined />,
       label: '删除',
       danger: true,
       onClick: () => handleDelete(file),
+    },
+    {
+      type: 'divider',
+    },
+    {
+      key: 'newFolder',
+      icon: <FolderAddOutlined />,
+      label: '创建文件夹',
+      onClick: () => {
+        // 如果是文件夹，在其内部创建；如果是文件，在当前目录创建
+        const targetPath = file.isDirectory ? normalizePath(file.path) : normalizePath(currentPath);
+        setMkdirParentPath(targetPath);
+        setNewDirName('');
+        setMkdirModalOpen(true);
+      },
+    },
+    {
+      key: 'upload',
+      icon: <UploadOutlined />,
+      label: '上传文件',
+      onClick: () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.multiple = true;
+        input.onchange = async (e) => {
+          const files = (e.target as HTMLInputElement).files;
+          if (files) {
+            // 如果是文件夹，上传到其内部；如果是文件，上传到当前目录
+            const targetPath = file.isDirectory ? normalizePath(file.path) : normalizePath(currentPath);
+            for (let i = 0; i < files.length; i++) {
+              try {
+                const res = await fileApi.upload(connectionId, targetPath, files[i]);
+                if (res.data.code === 0) {
+                  message.success(`${files[i].name} 上传成功`);
+                } else {
+                  message.error(res.data.message || '上传失败');
+                }
+              } catch (error: any) {
+                message.error(error?.response?.data?.message || '上传失败');
+              }
+            }
+            loadCurrentFiles(currentPath);
+            loadRootDirectory();
+          }
+        };
+        input.click();
+      },
+    },
+    {
+      type: 'divider',
+    },
+    {
+      key: 'refresh',
+      icon: <ReloadOutlined />,
+      label: '刷新',
+      onClick: () => {
+        loadCurrentFiles(currentPath);
+        loadRootDirectory();
+      },
     },
   ];
 
@@ -326,7 +391,7 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
       icon: <FolderAddOutlined />,
       label: '创建文件夹',
       onClick: () => {
-        setMkdirParentPath(currentPath);
+        setMkdirParentPath(normalizePath(currentPath));
         setNewDirName('');
         setMkdirModalOpen(true);
       },
@@ -348,18 +413,22 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
   // 文件项组件
   const FileItem: React.FC<{ file: FileInfo }> = ({ file }) => {
     return (
-      <Dropdown 
-        menu={{ items: getFileItemContextMenu(file) }} 
+      <Dropdown
+        menu={{ items: getFileItemContextMenu(file) }}
         trigger={['contextMenu']}
       >
-        <div 
+        <div
           className={`file-item ${file.isDirectory ? 'folder' : 'file'}`}
+          onContextMenu={(e) => {
+            // 阻止事件冒泡，防止触发外层 ContextMenuWrapper 的菜单
+            e.stopPropagation();
+          }}
           onDoubleClick={() => {
             if (file.isDirectory) {
-              const path = file.path.startsWith('//') ? file.path.substring(1) : file.path;
+              const path = normalizePath(file.path);
               setCurrentPath(path);
               setSelectedKey(path);
-              setExpandedKeys(prev => 
+              setExpandedKeys(prev =>
                 prev.includes(path) ? prev : [...prev, path]
               );
             }
@@ -432,9 +501,9 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
             <HomeOutlined />
           </Breadcrumb.Item>
           {currentPath.split('/').filter(Boolean).map((part, index, arr) => (
-            <Breadcrumb.Item 
+            <Breadcrumb.Item
               key={part}
-              onClick={() => setCurrentPath('/' + arr.slice(0, index + 1).join('/'))}
+              onClick={() => setCurrentPath(normalizePath('/' + arr.slice(0, index + 1).join('/')))}
               className="breadcrumb-item"
             >
               {part}
@@ -443,10 +512,10 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
         </Breadcrumb>
         
         <div className="toolbar-right">
-          <Button 
+          <Button
             icon={<FolderAddOutlined />}
             onClick={() => {
-              setMkdirParentPath(currentPath);
+              setMkdirParentPath(normalizePath(currentPath));
               setNewDirName('');
               setMkdirModalOpen(true);
             }}
@@ -507,11 +576,11 @@ const FileManager: React.FC<FileManagerProps> = ({ connectionId }) => {
                   <div className="file-grid">
                     {/* 返回上级 */}
                     {currentPath !== '/' && (
-                      <div 
+                      <div
                         className="file-item folder"
                         onDoubleClick={() => {
                           const parts = currentPath.split('/').filter(Boolean);
-                          const parentPath = '/' + parts.slice(0, -1).join('/');
+                          const parentPath = normalizePath('/' + parts.slice(0, -1).join('/'));
                           setCurrentPath(parentPath || '/');
                           setSelectedKey(parentPath || null);
                         }}

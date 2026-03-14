@@ -35,7 +35,8 @@ public class CredentialService {
     private final ObjectMapper objectMapper;
     
     private List<Connection> connections = new ArrayList<>();
-    private AiConfig aiConfig;
+    private List<AiConfig> aiConfigs = new ArrayList<>();
+    private String activeModelProvider;
     
     public CredentialService(ConfigService configService, EncryptionService encryptionService) {
         this.configService = configService;
@@ -185,34 +186,100 @@ public class CredentialService {
     // ============ AI Configuration ============
 
     /**
-     * Get AI configuration (without API key)
+     * Get all AI configurations (without API keys)
      */
-    public Optional<AiConfig> getAiConfig() {
-        return Optional.ofNullable(aiConfig)
+    public List<AiConfig> getAiConfigs() {
+        return aiConfigs.stream()
+                .map(AiConfig::toSafeCopy)
+                .toList();
+    }
+
+    /**
+     * Get AI configuration by provider ID
+     */
+    public Optional<AiConfig> getAiConfig(String providerId) {
+        return aiConfigs.stream()
+                .filter(c -> c.getId().equals(providerId))
+                .findFirst()
                 .map(AiConfig::toSafeCopy);
     }
-    
+
     /**
      * Get AI configuration with API key (for internal use)
      */
-    public Optional<AiConfig> getAiConfigWithApiKey() {
-        return Optional.ofNullable(aiConfig);
+    public Optional<AiConfig> getAiConfigWithApiKey(String providerId) {
+        return aiConfigs.stream()
+                .filter(c -> c.getId().equals(providerId))
+                .findFirst();
     }
-    
+
+    /**
+     * Get active AI configuration with API key
+     */
+    public Optional<AiConfig> getActiveAiConfigWithApiKey() {
+        if (activeModelProvider == null) {
+            return aiConfigs.stream()
+                    .filter(AiConfig::isEnabled)
+                    .findFirst();
+        }
+        return aiConfigs.stream()
+                .filter(c -> c.getId().equals(activeModelProvider))
+                .findFirst();
+    }
+
+    /**
+     * Get active model provider ID
+     */
+    public String getActiveModelProvider() {
+        return activeModelProvider;
+    }
+
+    /**
+     * Set active model provider
+     */
+    public void setActiveModelProvider(String providerId) {
+        this.activeModelProvider = providerId;
+        saveAiConfigs();
+    }
+
     /**
      * Save AI configuration
      */
     public AiConfig saveAiConfig(AiConfig config) {
         // Encrypt API key
-        if (config.getApiKey() != null) {
+        if (config.getApiKey() != null && !config.getApiKey().isEmpty()) {
             config.setApiKey(encryptionService.encrypt(config.getApiKey()));
         }
-        
-        this.aiConfig = config;
-        saveAiConfigToFile();
-        
-        log.info("Saved AI configuration: provider={}", config.getProvider());
+
+        // Update existing or add new
+        Optional<AiConfig> existing = aiConfigs.stream()
+                .filter(c -> c.getId().equals(config.getId()))
+                .findFirst();
+
+        if (existing.isPresent()) {
+            aiConfigs.removeIf(c -> c.getId().equals(config.getId()));
+        }
+        aiConfigs.add(config);
+
+        saveAiConfigs();
+
+        log.info("Saved AI configuration: provider={}", config.getId());
         return config.toSafeCopy();
+    }
+
+    /**
+     * Delete AI configuration
+     */
+    public boolean deleteAiConfig(String providerId) {
+        boolean removed = aiConfigs.removeIf(c -> c.getId().equals(providerId));
+        if (removed) {
+            if (providerId.equals(activeModelProvider)) {
+                activeModelProvider = null;
+            }
+            saveAiConfigs();
+            log.info("Deleted AI configuration: {}", providerId);
+        }
+        return removed;
     }
     
     // ============ Temporary Connection (for testing) ============
@@ -279,34 +346,46 @@ public class CredentialService {
     
     private void loadAiConfig() {
         File file = new File(configService.getConfigPath(), AI_CONFIG_FILE);
-        
+
         if (!file.exists()) {
             log.info("AI config file not found");
-            aiConfig = null;
+            aiConfigs = new ArrayList<>();
+            activeModelProvider = null;
             return;
         }
-        
+
         try {
             String encrypted = Files.readString(file.toPath());
             String decrypted = encryptionService.decrypt(encrypted);
-            
-            aiConfig = objectMapper.readValue(decrypted, AiConfig.class);
-            log.info("Loaded AI config: provider={}", aiConfig.getProvider());
+
+            Map<String, Object> data = objectMapper.readValue(decrypted, new TypeReference<Map<String, Object>>() {});
+            aiConfigs = ((List<Map<String, Object>>) data.getOrDefault("configs", new ArrayList<>()))
+                    .stream()
+                    .map(m -> objectMapper.convertValue(m, AiConfig.class))
+                    .toList();
+            activeModelProvider = (String) data.get("activeProvider");
+
+            log.info("Loaded {} AI configs, active={}", aiConfigs.size(), activeModelProvider);
         } catch (Exception e) {
             log.error("Failed to load AI config: {}", e.getMessage());
-            aiConfig = null;
+            aiConfigs = new ArrayList<>();
+            activeModelProvider = null;
         }
     }
-    
-    private void saveAiConfigToFile() {
+
+    private void saveAiConfigs() {
         File file = new File(configService.getConfigPath(), AI_CONFIG_FILE);
-        
+
         try {
-            String json = objectMapper.writeValueAsString(aiConfig);
+            Map<String, Object> data = new HashMap<>();
+            data.put("configs", aiConfigs);
+            data.put("activeProvider", activeModelProvider);
+
+            String json = objectMapper.writeValueAsString(data);
             String encrypted = encryptionService.encrypt(json);
-            
+
             Files.writeString(file.toPath(), encrypted);
-            log.debug("Saved AI config to file");
+            log.debug("Saved {} AI configs to file", aiConfigs.size());
         } catch (Exception e) {
             log.error("Failed to save AI config: {}", e.getMessage());
             throw new RuntimeException("Failed to save AI config", e);

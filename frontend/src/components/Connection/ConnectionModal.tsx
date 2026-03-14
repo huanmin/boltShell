@@ -213,14 +213,14 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ open, onClose, connec
 
         {/* 测试结果 */}
         {testResult && (
-          <div style={{ 
-            padding: '8px 12px', 
-            marginBottom: 16, 
+          <div style={{
+            padding: '8px 12px',
+            marginBottom: 16,
             borderRadius: 6,
-            background: testResult.success ? '#f6ffed' : '#fff2f0',
-            border: `1px solid ${testResult.success ? '#b7eb8f' : '#ffccc7'}`,
+            background: testResult.success ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+            border: `1px solid ${testResult.success ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
           }}>
-            <span style={{ color: testResult.success ? '#52c41a' : '#ff4d4f' }}>
+            <span style={{ color: testResult.success ? '#22c55e' : '#ef4444' }}>
               {testResult.success ? '✓ ' : '✗ '}
               {testResult.message}
             </span>
@@ -228,7 +228,7 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ open, onClose, connec
         )}
 
         {/* 按钮区域 */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #f0f0f0', paddingTop: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 16, marginTop: 16, borderTop: '1px solid var(--ant-color-border, #30363d)' }}>
           <Button 
             onClick={handleTest} 
             loading={testing}

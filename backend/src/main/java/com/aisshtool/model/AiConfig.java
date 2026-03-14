@@ -17,36 +17,33 @@ import java.util.Map;
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class AiConfig {
-    
-    private Provider provider;
+
+    private String id;  // provider id: openai, anthropic, google, qwen, kimi, minimax, zhipu, custom
+    private String name;  // display name
     private String baseUrl;
     private String model;
-    
+
     // Sensitive - not returned in API responses
     private transient String apiKey;
-    
+
     private Map<String, Object> extraConfig;
-    
-    public enum Provider {
-        OPENAI,
-        AZURE,
-        QWEN,
-        DEEPSEEK,
-        CUSTOM
-    }
-    
+
+    private boolean enabled;
+
     /**
      * Create a copy without sensitive data for API responses
      */
     public AiConfig toSafeCopy() {
         return AiConfig.builder()
-                .provider(this.provider)
+                .id(this.id)
+                .name(this.name)
                 .baseUrl(this.baseUrl)
                 .model(this.model)
                 .extraConfig(this.extraConfig)
+                .enabled(this.enabled)
                 .build();
     }
-    
+
     /**
      * Check if API key is configured
      */

@@ -225,10 +225,11 @@ public class SshClient {
      */
     public void delete(String connectionId, String path, boolean isDirectory) throws IOException {
         SFTPClient sftp = getSftpClient(connectionId);
-        
+
         try {
             if (isDirectory) {
-                sftp.rmdir(path);
+                // Recursively delete directory contents
+                deleteDirectoryRecursive(sftp, path);
             } else {
                 sftp.rm(path);
             }
@@ -238,19 +239,87 @@ public class SshClient {
             throw new IOException("Failed to delete: " + e.getMessage());
         }
     }
+
+    /**
+     * Recursively delete a directory and its contents
+     */
+    private void deleteDirectoryRecursive(SFTPClient sftp, String path) throws IOException {
+        List<RemoteResourceInfo> items = sftp.ls(path);
+        for (RemoteResourceInfo item : items) {
+            // Skip . and ..
+            if (item.getName().equals(".") || item.getName().equals("..")) {
+                continue;
+            }
+
+            String itemPath = path + "/" + item.getName();
+            if (item.isDirectory()) {
+                deleteDirectoryRecursive(sftp, itemPath);
+            } else {
+                sftp.rm(itemPath);
+            }
+        }
+        sftp.rmdir(path);
+    }
     
     /**
-     * Create directory
+     * Create directory (supports nested directories like mkdir -p)
      */
     public void mkdir(String connectionId, String path) throws IOException {
         SFTPClient sftp = getSftpClient(connectionId);
-        
+
         try {
+            // Try direct creation first
             sftp.mkdir(path);
             log.info("Created directory: {}", path);
         } catch (Exception e) {
-            log.error("Failed to create directory {}: {}", path, e.getMessage());
-            throw new IOException("Failed to create directory: " + e.getMessage());
+            // If failed, try to create parent directories recursively
+            log.debug("Direct mkdir failed, trying recursive creation for: {}", path);
+            try {
+                mkdirRecursive(sftp, path);
+                log.info("Created directory recursively: {}", path);
+            } catch (Exception ex) {
+                log.error("Failed to create directory {}: {}", path, ex.getMessage());
+                throw new IOException("Failed to create directory: " + ex.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Recursively create directory and its parents
+     */
+    private void mkdirRecursive(SFTPClient sftp, String path) throws IOException {
+        // Normalize path
+        if (path.endsWith("/") && path.length() > 1) {
+            path = path.substring(0, path.length() - 1);
+        }
+
+        // Check if directory already exists
+        try {
+            sftp.stat(path);
+            return; // Directory exists
+        } catch (Exception e) {
+            // Directory doesn't exist, continue
+        }
+
+        // Create parent directories first
+        int lastSlash = path.lastIndexOf('/');
+        if (lastSlash > 0) {
+            String parentPath = path.substring(0, lastSlash);
+            if (!parentPath.isEmpty()) {
+                mkdirRecursive(sftp, parentPath);
+            }
+        }
+
+        // Create this directory
+        try {
+            sftp.mkdir(path);
+        } catch (Exception e) {
+            // Check if already exists (race condition)
+            try {
+                sftp.stat(path);
+            } catch (Exception ex) {
+                throw new IOException("Failed to create: " + path + " - " + e.getMessage());
+            }
         }
     }
     

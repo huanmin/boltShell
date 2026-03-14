@@ -47,21 +47,47 @@ export const connectionApi = {
 
 // AI 配置 API
 export interface AiConfig {
-  provider: string;
+  id: string;
+  name: string;
   baseUrl: string;
   model: string;
-  hasApiKey: boolean;
+  enabled: boolean;
+}
+
+export interface TestResult {
+  success: boolean;
+  message: string;
+  models?: string[];
 }
 
 export const aiConfigApi = {
-  get: () => 
-    axios.get<ApiResult<AiConfig | null>>(`${API_BASE}/ai-config`),
-  
-  update: (data: Partial<AiConfig> & { apiKey?: string }) => 
+  // 获取所有配置
+  list: () =>
+    axios.get<ApiResult<AiConfig[]>>(`${API_BASE}/ai-config`),
+
+  // 获取单个配置
+  get: (providerId: string) =>
+    axios.get<ApiResult<AiConfig>>(`${API_BASE}/ai-config/${providerId}`),
+
+  // 获取当前活跃的提供商
+  getActive: () =>
+    axios.get<ApiResult<{ provider: string }>>(`${API_BASE}/ai-config/active`),
+
+  // 设置活跃提供商
+  setActive: (providerId: string) =>
+    axios.put<ApiResult<void>>(`${API_BASE}/ai-config/active/${providerId}`),
+
+  // 保存配置
+  save: (data: AiConfig & { apiKey?: string }) =>
     axios.put<ApiResult<AiConfig>>(`${API_BASE}/ai-config`, data),
-  
-  test: () => 
-    axios.post<ApiResult<{ success: boolean; message: string }>>(`${API_BASE}/ai-config/test`),
+
+  // 删除配置
+  delete: (providerId: string) =>
+    axios.delete<ApiResult<void>>(`${API_BASE}/ai-config/${providerId}`),
+
+  // 测试连接
+  test: (data: { providerId: string; baseUrl: string; model: string; apiKey?: string }) =>
+    axios.post<ApiResult<TestResult>>(`${API_BASE}/ai-config/test`, data),
 };
 
 // 文件管理 API

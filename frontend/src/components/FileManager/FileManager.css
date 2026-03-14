@@ -286,50 +286,7 @@
 
 /* 加载动画 */
 .file-manager .ant-spin-dot-item {
-  background-color: #58a6ff;
-}
-
-/* 模态框 */
-.ant-modal-content {
-  background: #161b22;
-  border: 1px solid #30363d;
-}
-
-.ant-modal-header {
-  background: #161b22;
-  border-bottom: 1px solid #30363d;
-}
-
-.ant-modal-title {
-  color: #c9d1d9;
-}
-
-.ant-modal-close-x {
-  color: #8b949e;
-}
-
-.ant-modal-close:hover {
-  background: #21262d;
-}
-
-.ant-modal-close-x:hover {
-  color: #c9d1d9;
-}
-
-.ant-input {
-  background: #0d1117;
-  border-color: #30363d;
-  color: #c9d1d9;
-}
-
-.ant-input:hover,
-.ant-input:focus {
-  border-color: #58a6ff;
-  background: #0d1117;
-}
-
-.ant-input::placeholder {
-  color: #6e7681;
+  background-color: #38bdf8;
 }
 
 /* 上传按钮 */
@@ -363,103 +320,143 @@
   color: #8b949e;
 }
 
-/* 右键菜单 */
-.ant-dropdown-menu {
-  background: #161b22;
-  border: 1px solid #30363d;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-  border-radius: 8px;
-  padding: 4px 0;
-  min-width: 160px;
+/* Light Theme */
+[data-theme="light"] .file-manager {
+  background: #f8fafc;
+  color: #1e293b;
 }
 
-.ant-dropdown-menu-item {
-  color: #c9d1d9;
-  padding: 8px 16px;
-  border-radius: 0;
-  transition: all 0.15s ease;
+[data-theme="light"] .toolbar {
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
 }
 
-.ant-dropdown-menu-item:hover {
-  background: #21262d;
+[data-theme="light"] .toolbar .ant-btn {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  color: #64748b;
 }
 
-.ant-dropdown-menu-item .anticon {
-  margin-right: 8px;
-  color: #8b949e;
+[data-theme="light"] .toolbar .ant-btn:hover {
+  background: #f8fafc;
+  border-color: #3b82f6;
+  color: #3b82f6;
 }
 
-.ant-dropdown-menu-item:hover .anticon {
-  color: #58a6ff;
+[data-theme="light"] .path-breadcrumb .ant-breadcrumb-link {
+  color: #64748b;
 }
 
-.ant-dropdown-menu-item-danger {
-  color: #f85149 !important;
+[data-theme="light"] .path-breadcrumb .ant-breadcrumb-link:hover {
+  color: #3b82f6;
 }
 
-.ant-dropdown-menu-item-danger:hover {
-  background: rgba(248, 81, 73, 0.1);
+[data-theme="light"] .breadcrumb-item:hover {
+  color: #3b82f6;
 }
 
-.ant-dropdown-menu-item-danger .anticon {
-  color: #f85149 !important;
+[data-theme="light"] .folder-tree {
+  background: #f8fafc;
+  border-right: 1px solid #e2e8f0;
+  box-shadow: 1px 0 8px rgba(0, 0, 0, 0.05);
 }
 
-.ant-dropdown-menu-divider {
-  background: #30363d;
-  margin: 4px 0;
+[data-theme="light"] .folder-tree-header {
+  color: #3b82f6;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
 }
 
-/* 确认对话框暗色主题 */
-.confirm-modal-dark .ant-modal-content {
-  background: #161b22;
-  border: 1px solid #30363d;
+[data-theme="light"] .folder-tree .ant-tree {
+  color: #1e293b;
 }
 
-.confirm-modal-dark .ant-modal-header {
-  background: #161b22;
-  border-bottom: 1px solid #30363d;
+[data-theme="light"] .folder-tree .ant-tree-node-content-wrapper:hover {
+  background: #f1f5f9 !important;
 }
 
-.confirm-modal-dark .ant-modal-title {
-  color: #c9d1d9;
+[data-theme="light"] .folder-tree .ant-tree-node-selected > .ant-tree-node-content-wrapper {
+  background: rgba(59, 130, 246, 0.1) !important;
+  border-left: 2px solid #3b82f6;
 }
 
-.confirm-modal-dark .ant-modal-body {
-  color: #8b949e;
+[data-theme="light"] .folder-tree .ant-tree-switcher {
+  color: #94a3b8;
 }
 
-.confirm-modal-dark .ant-modal-close-x {
-  color: #8b949e;
+[data-theme="light"] .folder-tree .ant-tree-switcher:hover {
+  color: #3b82f6;
 }
 
-.confirm-modal-dark .ant-modal-close:hover {
-  background: #21262d;
+[data-theme="light"] .file-name-text {
+  color: #1e293b;
 }
 
-.confirm-modal-dark .ant-modal-footer {
-  border-top: 1px solid #30363d;
-  background: #0d1117;
+[data-theme="light"] .file-actions .ant-btn {
+  color: #94a3b8;
 }
 
-.confirm-modal-dark .ant-btn-default {
-  background: #21262d;
-  border-color: #30363d;
-  color: #c9d1d9;
+[data-theme="light"] .file-actions .ant-btn:hover {
+  color: #3b82f6 !important;
 }
 
-.confirm-modal-dark .ant-btn-default:hover {
-  background: #30363d;
-  border-color: #484f58;
-  color: #f0f6fc;
+[data-theme="light"] .file-content {
+  background: #f8fafc;
 }
 
-.confirm-modal-dark .ant-btn-primary {
-  background: #da3633;
-  border-color: #da3633;
+[data-theme="light"] .file-content-header {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
 }
 
-.confirm-modal-dark .ant-btn-primary:hover {
-  background: #f85149;
-  border-color: #f85149;
+[data-theme="light"] .current-path {
+  color: #3b82f6;
+}
+
+[data-theme="light"] .file-count {
+  color: #64748b;
+  background: #f1f5f9;
+}
+
+[data-theme="light"] .file-item {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+}
+
+[data-theme="light"] .file-item:hover {
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .file-name {
+  color: #1e293b;
+}
+
+[data-theme="light"] .file-info {
+  color: #64748b;
+}
+
+[data-theme="light"] .empty-area {
+  border: 1px dashed #cbd5e1;
+}
+
+[data-theme="light"] .empty-area .ant-empty-description {
+  color: #94a3b8;
+}
+
+[data-theme="light"] .file-content .ant-empty-description {
+  color: #94a3b8;
+}
+
+[data-theme="light"] .file-manager .ant-spin-dot-item {
+  background-color: #3b82f6;
+}
+
+[data-theme="light"] .path-breadcrumb .anticon-home {
+  color: #3b82f6;
+}
+
+[data-theme="light"] .folder-tree::after {
+  background: linear-gradient(180deg, #3b82f600, #3b82f6, #3b82f600);
 }

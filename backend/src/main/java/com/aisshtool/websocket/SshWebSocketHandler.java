@@ -125,19 +125,22 @@ public class SshWebSocketHandler implements WebSocketHandler {
     
     private void handleAiChat(WebSocketSession session, Map<String, Object> payload) throws IOException {
         String message = (String) payload.get("message");
+        String query = (String) payload.get("query");
+        if (query == null) query = message;
         log.info("AI chat request: {}", message);
-        
+
         // TODO: Integrate with Spring AI
         // For now, return a mock response
         String suggestedCommand = generateMockCommand(message);
-        
+
         // Check for dangerous patterns
         DangerCommandChecker.DangerCheckResult checkResult = dangerChecker.check(suggestedCommand);
-        
+
         sendMessage(session, Map.of(
                 "type", "ai.response",
                 "payload", Map.of(
                         "commandId", "cmd-" + System.currentTimeMillis(),
+                        "query", query,
                         "command", suggestedCommand,
                         "explanation", "根据您的描述生成的命令",
                         "riskLevel", checkResult.level().getCode(),

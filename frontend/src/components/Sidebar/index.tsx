@@ -1,5 +1,6 @@
-import { Input, List, Button, Space, Tooltip, Spin, message, Modal } from 'antd';
+import { Input, List, Button, Space, Tooltip, Spin, message, Modal, Dropdown } from 'antd';
 import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, MenuFoldOutlined, MenuUnfoldOutlined, FolderOutlined } from '@ant-design/icons';
+import type { MenuProps } from 'antd';
 import { useEffect, useState } from 'react';
 import { useAppStore, type Connection } from '../../stores/appStore';
 import { connectionApi } from '../../api';
@@ -102,12 +103,11 @@ const Sidebar = () => {
     }
   };
 
-  const handleFileManagerClick = (e: React.MouseEvent, conn: Connection) => {
-    e.stopPropagation();
-    
+  // 打开文件管理
+  const openFileManager = (conn: Connection) => {
     // 检查是否已有该连接的文件管理会话
     const existingSession = sessions.find(s => s.connectionId === conn.id && s.type === 'file');
-    
+
     if (existingSession) {
       setActiveSession(existingSession.id);
     } else {
@@ -121,7 +121,7 @@ const Sidebar = () => {
         active: true,
       });
       setActiveSession(newSessionId);
-      
+
       // 确保连接
       if (conn.status === 'disconnected') {
         updateConnectionStatus(conn.id, 'connecting');
@@ -132,8 +132,12 @@ const Sidebar = () => {
     }
   };
 
-  const handleDelete = async (e: React.MouseEvent, conn: Connection) => {
+  const handleFileManagerClick = (e: React.MouseEvent, conn: Connection) => {
     e.stopPropagation();
+    openFileManager(conn);
+  };
+
+  const handleDelete = (conn: Connection) => {
     Modal.confirm({
       title: '确认删除',
       content: `确定要删除连接 "${conn.name}" 吗？此操作不可恢复。`,
@@ -141,7 +145,6 @@ const Sidebar = () => {
       okButtonProps: { danger: true },
       cancelText: '取消',
       centered: true,
-      className: 'confirm-modal-dark',
       onOk: async () => {
         try {
           await connectionApi.delete(conn.id);
@@ -154,24 +157,72 @@ const Sidebar = () => {
     });
   };
 
-  const handleEdit = (e: React.MouseEvent, conn: Connection) => {
-    e.stopPropagation();
+  const handleEdit = (conn: Connection) => {
     showEditConnectionModal(conn);
   };
 
+  // 连接项右键菜单
+  const getConnectionContextMenu = (conn: Connection): MenuProps['items'] => [
+    {
+      key: 'fileManager',
+      icon: <FolderOutlined />,
+      label: '文件管理',
+      onClick: () => openFileManager(conn),
+    },
+    {
+      key: 'edit',
+      icon: <EditOutlined />,
+      label: '修改连接',
+      onClick: () => showEditConnectionModal(conn),
+    },
+    {
+      key: 'delete',
+      icon: <DeleteOutlined />,
+      label: '删除连接',
+      danger: true,
+      onClick: () => handleDelete(conn),
+    },
+    {
+      type: 'divider',
+    },
+    {
+      key: 'newConnection',
+      icon: <PlusOutlined />,
+      label: '新建连接',
+      onClick: () => showAddConnectionModal(),
+    },
+  ];
+
+  // 空白区域右键菜单
+  const getEmptyContextMenu = (): MenuProps['items'] => [
+    {
+      key: 'newConnection',
+      icon: <PlusOutlined />,
+      label: '新建连接',
+      onClick: () => showAddConnectionModal(),
+    },
+  ];
+
   if (sidebarCollapsed) {
     return (
-      <div className="sidebar-collapsed">
+      <div className="sidebar-collapsed" onContextMenu={(e) => e.preventDefault()}>
         <div className="sidebar-icons">
           {connections.map((conn) => (
-            <Tooltip key={conn.id} title={conn.name} placement="right">
-              <div
-                className={`sidebar-icon-item ${conn.status}`}
-                onClick={() => handleConnectionClick(conn)}
-              >
-                <span className="status-dot" style={{ background: statusColors[conn.status] }} />
-              </div>
-            </Tooltip>
+            <Dropdown
+              key={conn.id}
+              menu={{ items: getConnectionContextMenu(conn) }}
+              trigger={['contextMenu']}
+            >
+              <Tooltip title={conn.name} placement="right">
+                <div
+                  className={`sidebar-icon-item ${conn.status}`}
+                  onClick={() => handleConnectionClick(conn)}
+                  onContextMenu={(e) => e.preventDefault()}
+                >
+                  <span className="status-dot" style={{ background: statusColors[conn.status] }} />
+                </div>
+              </Tooltip>
+            </Dropdown>
           ))}
         </div>
         <Button
@@ -185,91 +236,111 @@ const Sidebar = () => {
   }
 
   return (
-    <div className="sidebar">
-      <div className="sidebar-search">
-        <Input 
-          placeholder="搜索连接..." 
-          prefix={<SearchOutlined />} 
-          value={searchKeyword}
-          onChange={(e) => setSearchKeyword(e.target.value)}
-          allowClear
-        />
-      </div>
-
-      <div className="sidebar-title">
-        <span>📡 连接列表</span>
-      </div>
-
-      {loading ? (
-        <div className="sidebar-loading">
-          <Spin />
+    <Dropdown
+      menu={{ items: getEmptyContextMenu() }}
+      trigger={['contextMenu']}
+    >
+      <div className="sidebar" onContextMenu={(e) => e.preventDefault()}>
+        <div className="sidebar-search">
+          <Input
+            placeholder="搜索连接..."
+            prefix={<SearchOutlined />}
+            value={searchKeyword}
+            onChange={(e) => setSearchKeyword(e.target.value)}
+            allowClear
+          />
         </div>
-      ) : (
-        <List
-          className="connection-list"
-          dataSource={filteredConnections}
-          locale={{ emptyText: searchKeyword ? '未找到匹配的连接' : '暂无连接，点击下方添加' }}
-          renderItem={(conn) => (
-            <List.Item
-              className={`connection-item ${sessions.find(s => s.connectionId === conn.id)?.active ? 'active' : ''}`}
-              onClick={() => handleConnectionClick(conn)}
-              onDoubleClick={() => handleConnectionDoubleClick(conn)}
-            >
-              <div className="connection-info">
-                <span className="status-dot" style={{ background: statusColors[conn.status] }} />
-                <div className="connection-details">
-                  <div className="connection-name">{conn.name}</div>
-                  <div className="connection-host">{conn.host}</div>
-                </div>
-              </div>
-              <Space className="connection-actions" size={4}>
-                <Button 
-                  type="text" 
-                  size="small" 
-                  icon={<FolderOutlined />}
-                  onClick={(e) => handleFileManagerClick(e, conn)}
-                  title="文件管理"
-                />
-                <Button 
-                  type="text" 
-                  size="small" 
-                  icon={<EditOutlined />}
-                  onClick={(e) => handleEdit(e, conn)}
-                  title="编辑"
-                />
-                <Button 
-                  type="text" 
-                  size="small" 
-                  icon={<DeleteOutlined />} 
-                  danger
-                  onClick={(e) => handleDelete(e, conn)}
-                  title="删除"
-                />
-              </Space>
-            </List.Item>
-          )}
-        />
-      )}
 
-      <div className="sidebar-footer">
-        <Button 
-          type="primary" 
-          icon={<PlusOutlined />} 
-          block
-          onClick={showAddConnectionModal}
-        >
-          新增连接
-        </Button>
-        <Button
-          type="text"
-          icon={<MenuFoldOutlined />}
-          onClick={toggleSidebar}
-          block
-        >
-          收起
-        </Button>
+        <div className="sidebar-title">
+          <span>📡 连接列表</span>
+        </div>
+
+        {loading ? (
+          <div className="sidebar-loading">
+            <Spin />
+          </div>
+        ) : (
+          <List
+            className="connection-list"
+            dataSource={filteredConnections}
+            locale={{ emptyText: searchKeyword ? '未找到匹配的连接' : '暂无连接，点击下方添加' }}
+            renderItem={(conn) => (
+              <Dropdown
+                menu={{ items: getConnectionContextMenu(conn) }}
+                trigger={['contextMenu']}
+              >
+                <List.Item
+                  className={`connection-item ${sessions.find(s => s.connectionId === conn.id)?.active ? 'active' : ''}`}
+                  onClick={() => handleConnectionClick(conn)}
+                  onDoubleClick={() => handleConnectionDoubleClick(conn)}
+                  onContextMenu={(e) => e.stopPropagation()}
+                >
+                  <div className="connection-info">
+                    <span className="status-dot" style={{ background: statusColors[conn.status] }} />
+                    <div className="connection-details">
+                      <div className="connection-name">{conn.name}</div>
+                      <div className="connection-host">{conn.host}</div>
+                    </div>
+                  </div>
+                  <Space className="connection-actions" size={4}>
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<FolderOutlined />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleFileManagerClick(e, conn);
+                      }}
+                      title="文件管理"
+                    />
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<EditOutlined />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(conn);
+                      }}
+                      title="编辑"
+                    />
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<DeleteOutlined />}
+                      danger
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(conn);
+                      }}
+                      title="删除"
+                    />
+                  </Space>
+                </List.Item>
+              </Dropdown>
+            )}
+          />
+        )}
+
+        <div className="sidebar-footer">
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            block
+            onClick={showAddConnectionModal}
+          >
+            新增连接
+          </Button>
+          <Button
+            type="text"
+            icon={<MenuFoldOutlined />}
+            onClick={toggleSidebar}
+            block
+          >
+            收起
+          </Button>
+        </div>
       </div>
-    </div>
+    </Dropdown>
   );
 };
 
