@@ -1,5 +1,68 @@
 # AI SSH Tool - 开发进度日志
 
+## 2026-03-17 AI 智能命令交互增强
+
+### ✅ 已完成功能
+
+#### Phase 1: 命令历史与状态追踪 (100%)
+
+| 模块 | 功能 | 状态 |
+|------|------|------|
+| **appStore.ts** | AiHistoryItem 接口定义 | ✅ |
+| **appStore.ts** | 历史记录状态管理 | ✅ |
+| **AiResponsePanel.tsx** | 历史记录列表显示 | ✅ |
+| **AiResponsePanel.tsx** | 执行状态标签（已执行/已取消） | ✅ |
+| **TerminalSession.tsx** | 命令追踪（historyId） | ✅ |
+
+#### Phase 2: 命令执行反馈循环 (100%)
+
+| 模块 | 功能 | 状态 |
+|------|------|------|
+| **SshWebSocketHandler.java** | 命令输出追踪 | ✅ |
+| **SshWebSocketHandler.java** | Prompt 检测（命令完成） | ✅ |
+| **AiService.java** | analyzeCommandOutput 方法 | ✅ |
+| **AiService.java** | FollowUpResult 结果解析 | ✅ |
+| **前端消息处理** | ai.command.complete/followup | ✅ |
+
+#### Phase 3: 实时命令提示 (100%)
+
+| 模块 | 功能 | 状态 |
+|------|------|------|
+| **CommandHintPanel.tsx** | 命令提示组件 | ✅ |
+| **TerminalSession.tsx** | 输入防抖（300ms） | ✅ |
+| **TerminalSession.tsx** | 键盘导航（↑↓/Tab） | ✅ |
+| **AiService.java** | getCommandHints 方法 | ✅ |
+| **CommandHint.java** | 命令提示模型 | ✅ |
+
+#### Phase 4: UI/UX 优化 (100%)
+
+| 模块 | 功能 | 状态 |
+|------|------|------|
+| **index.css** | 历史记录样式 | ✅ |
+| **index.css** | 命令提示面板样式 | ✅ |
+| **index.css** | 明亮主题支持 | ✅ |
+| **TerminalArea.tsx** | 全局快捷键（Esc） | ✅ |
+
+### 🔧 新增消息类型
+
+| 类型 | 方向 | 说明 |
+|------|------|------|
+| `ai.command.execute` | 前端→后端 | 执行命令并开始追踪 |
+| `ai.command.tracking` | 后端→前端 | 开始追踪命令输出 |
+| `ai.command.complete` | 后端→前端 | 命令执行完成 |
+| `ai.command.hint` | 前端→后端 | 请求命令提示 |
+| `ai.command.hints` | 后端→前端 | 返回命令提示列表 |
+| `ai.followup` | 后端→前端 | AI 后续建议 |
+
+### 📁 新增文件
+
+```
+frontend/src/components/Terminal/CommandHintPanel.tsx  # 命令提示组件
+backend/src/main/java/com/aisshtool/model/CommandHint.java  # 命令提示模型
+```
+
+---
+
 ## 2026-03-12 开发记录
 
 ### ✅ 已完成功能

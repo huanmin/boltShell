@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * WebSocket Handler for SSH terminal sessions
@@ -34,6 +35,18 @@ public class SshWebSocketHandler implements WebSocketHandler {
     // WebSocket session ID -> SSH shell
     private final Map<String, Session.Shell> shells = new ConcurrentHashMap<>();
 
+    // Command tracking: commandId -> output buffer
+    private final Map<String, StringBuilder> commandOutputs = new ConcurrentHashMap<>();
+    // Command tracking: commandId -> WebSocket session ID
+    private final Map<String, String> commandSessionMap = new ConcurrentHashMap<>();
+    // Command tracking: commandId -> original command
+    private final Map<String, String> commandMap = new ConcurrentHashMap<>();
+
+    // Prompt detection pattern (simplified - matches common shell prompts)
+    private static final java.util.regex.Pattern PROMPT_PATTERN = java.util.regex.Pattern.compile(
+            "[#$>]\\s*$|\\].*[$#]\\s*$"
+    );
+
     public SshWebSocketHandler(SshClient sshClient, CredentialService credentialService,
                                DangerCommandChecker dangerChecker, AiService aiService) {
         this.sshClient = sshClient;
@@ -47,45 +60,65 @@ public class SshWebSocketHandler implements WebSocketHandler {
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
         String connectionId = getConnectionId(session);
         log.info("WebSocket connection established: {} -> {}", session.getId(), connectionId);
-        
+
         sessions.put(session.getId(), session);
-        
-        // Send connection status
-        sendMessage(session, Map.of(
-                "type", "connection.status",
-                "payload", Map.of(
-                        "status", "connecting",
-                        "sessionId", session.getId()
-                )
-        ));
-        
-        // Connect to SSH server
-        boolean connected = sshClient.connect(connectionId);
-        
-        if (connected) {
-            sendMessage(session, Map.of(
-                    "type", "connection.status",
-                    "payload", Map.of(
-                            "status", "connected",
-                            "sessionId", session.getId()
-                    )
-            ));
-            
-            // Start shell
+
+        // Process asynchronously to avoid blocking and give browser time to settle
+        CompletableFuture.runAsync(() -> {
             try {
-                Session.Shell shell = sshClient.startShell(connectionId);
-                shells.put(session.getId(), shell);
-                
-                // Start output reader thread
-                startOutputReader(session, shell);
-                
+                // Small delay to let the browser fully establish the connection
+                Thread.sleep(50);
+
+                if (!session.isOpen()) {
+                    log.warn("Session closed before we could start: {}", session.getId());
+                    return;
+                }
+
+                // Send connection status
+                sendMessage(session, Map.of(
+                        "type", "connection.status",
+                        "payload", Map.of(
+                                "status", "connecting",
+                                "sessionId", session.getId()
+                        )
+                ));
+
+                // Connect to SSH server
+                boolean connected = sshClient.connect(connectionId);
+
+                if (!session.isOpen()) {
+                    log.warn("Session closed during SSH connect: {}", session.getId());
+                    return;
+                }
+
+                if (connected) {
+                    sendMessage(session, Map.of(
+                            "type", "connection.status",
+                            "payload", Map.of(
+                                    "status", "connected",
+                                    "sessionId", session.getId()
+                            )
+                    ));
+
+                    // Start shell
+                    try {
+                        Session.Shell shell = sshClient.startShell(connectionId);
+                        shells.put(session.getId(), shell);
+
+                        // Start output reader thread
+                        startOutputReader(session, shell);
+
+                    } catch (Exception e) {
+                        log.error("Failed to start shell: {}", e.getMessage());
+                        sendError(session, "SSH_SESSION_ERROR", "Failed to start shell: " + e.getMessage());
+                    }
+                } else {
+                    sendError(session, "SSH_CONNECTION_FAILED", "Failed to connect to SSH server");
+                }
             } catch (Exception e) {
-                log.error("Failed to start shell: {}", e.getMessage());
-                sendError(session, "SSH_SESSION_ERROR", "Failed to start shell: " + e.getMessage());
+                log.error("Error in async connection handler: {}", e.getMessage());
             }
-        } else {
-            sendError(session, "SSH_CONNECTION_FAILED", "Failed to connect to SSH server");
-        }
+        });
     }
     
     @Override
@@ -107,6 +140,8 @@ public class SshWebSocketHandler implements WebSocketHandler {
             case "terminal.resize" -> handleTerminalResize(session, msgPayload);
             case "ai.chat" -> handleAiChat(session, msgPayload);
             case "ai.confirm" -> handleAiConfirm(session, msgPayload);
+            case "ai.command.execute" -> handleAiCommandExecute(session, msgPayload);
+            case "ai.command.hint" -> handleAiCommandHint(session, msgPayload);
             case "ping" -> sendMessage(session, Map.of("type", "pong", "payload", Map.of()));
         }
     }
@@ -128,43 +163,71 @@ public class SshWebSocketHandler implements WebSocketHandler {
         // TODO: Implement PTY resize
     }
     
-    private void handleAiChat(WebSocketSession session, Map<String, Object> payload) throws IOException {
+    private void handleAiChat(WebSocketSession session, Map<String, Object> payload) {
         String message = (String) payload.get("message");
-        String query = (String) payload.get("query");
-        if (query == null) query = message;
+        String queryParam = (String) payload.get("query");
+        final String query = queryParam != null ? queryParam : message;
         log.info("AI chat request: {}", message);
 
-        // Call AI service
-        Optional<AiService.ACommandResult> resultOpt = aiService.generateCommand(message);
+        // Use streaming AI service
+        aiService.generateCommandStreaming(
+                message,
+                // onProgress - send partial content
+                (partialContent) -> {
+                    try {
+                        if (session.isOpen()) {
+                            sendMessage(session, Map.of(
+                                    "type", "ai.progress",
+                                    "payload", Map.of(
+                                            "content", partialContent
+                                    )
+                            ));
+                        }
+                    } catch (Exception e) {
+                        log.error("Failed to send progress: {}", e.getMessage());
+                    }
+                },
+                // onComplete - send final result
+                (result) -> {
+                    try {
+                        if (session.isOpen()) {
+                            // Check for dangerous patterns
+                            DangerCommandChecker.DangerCheckResult checkResult = dangerChecker.check(result.command());
 
-        if (resultOpt.isPresent()) {
-            AiService.ACommandResult result = resultOpt.get();
+                            // Combine AI warnings with danger checker warnings
+                            List<String> allWarnings = new java.util.ArrayList<>(result.warnings());
+                            allWarnings.addAll(checkResult.warnings());
 
-            // Check for dangerous patterns
-            DangerCommandChecker.DangerCheckResult checkResult = dangerChecker.check(result.command());
+                            // Use the higher risk level
+                            String riskLevel = getHigherRiskLevel(result.riskLevel(), checkResult.level().getCode());
 
-            // Combine AI warnings with danger checker warnings
-            List<String> allWarnings = new java.util.ArrayList<>(result.warnings());
-            allWarnings.addAll(checkResult.warnings());
-
-            // Use the higher risk level
-            String riskLevel = getHigherRiskLevel(result.riskLevel(), checkResult.level().getCode());
-
-            sendMessage(session, Map.of(
-                    "type", "ai.response",
-                    "payload", Map.of(
-                            "commandId", "cmd-" + System.currentTimeMillis(),
-                            "query", query,
-                            "command", result.command(),
-                            "explanation", result.explanation(),
-                            "riskLevel", riskLevel,
-                            "warnings", allWarnings
-                    )
-            ));
-        } else {
-            // No AI config or API call failed
-            sendError(session, "AI_CONFIG_ERROR", "请先在设置中配置 AI 模型");
-        }
+                            sendMessage(session, Map.of(
+                                    "type", "ai.response",
+                                    "payload", Map.of(
+                                            "commandId", "cmd-" + System.currentTimeMillis(),
+                                            "query", query,
+                                            "command", result.command(),
+                                            "explanation", result.explanation(),
+                                            "riskLevel", riskLevel,
+                                            "warnings", allWarnings
+                                    )
+                            ));
+                        }
+                    } catch (Exception e) {
+                        log.error("Failed to send AI response: {}", e.getMessage());
+                    }
+                },
+                // onError - send error
+                (errorMessage) -> {
+                    try {
+                        if (session.isOpen()) {
+                            sendError(session, "AI_CONFIG_ERROR", errorMessage);
+                        }
+                    } catch (Exception e) {
+                        log.error("Failed to send error: {}", e.getMessage());
+                    }
+                }
+        );
     }
 
     private String getHigherRiskLevel(String level1, String level2) {
@@ -186,14 +249,14 @@ public class SshWebSocketHandler implements WebSocketHandler {
         String commandId = (String) payload.get("commandId");
         String action = (String) payload.get("action");
         String command = (String) payload.get("command");
-        
+
         if ("execute".equals(action) && command != null) {
             // Execute command
             Session.Shell shell = shells.get(session.getId());
             if (shell != null) {
                 shell.getOutputStream().write((command + "\n").getBytes());
                 shell.getOutputStream().flush();
-                
+
                 sendMessage(session, Map.of(
                         "type", "command.result",
                         "payload", Map.of(
@@ -204,6 +267,159 @@ public class SshWebSocketHandler implements WebSocketHandler {
                 ));
             }
         }
+    }
+
+    /**
+     * Handle AI command execution with tracking
+     */
+    private void handleAiCommandExecute(WebSocketSession session, Map<String, Object> payload) throws IOException {
+        String command = (String) payload.get("command");
+        String historyId = (String) payload.get("historyId");
+
+        if (command == null || command.isEmpty()) {
+            return;
+        }
+
+        Session.Shell shell = shells.get(session.getId());
+        if (shell != null) {
+            // Initialize command tracking
+            commandOutputs.put(historyId, new StringBuilder());
+            commandSessionMap.put(historyId, session.getId());
+            commandMap.put(historyId, command);
+
+            // Notify client that we're tracking this command
+            sendMessage(session, Map.of(
+                    "type", "ai.command.tracking",
+                    "payload", Map.of("commandId", historyId)
+            ));
+
+            // Execute the command
+            shell.getOutputStream().write((command + "\n").getBytes());
+            shell.getOutputStream().flush();
+
+            log.info("Started tracking command: {} with ID: {}", command, historyId);
+        }
+    }
+
+    /**
+     * Handle command hint request
+     */
+    private void handleAiCommandHint(WebSocketSession session, Map<String, Object> payload) {
+        String partialCommand = (String) payload.get("partialCommand");
+
+        if (partialCommand == null || partialCommand.isEmpty()) {
+            return;
+        }
+
+        aiService.getCommandHints(
+                partialCommand,
+                // onComplete
+                (hints) -> {
+                    try {
+                        if (session.isOpen()) {
+                            List<Map<String, String>> hintsList = hints.stream()
+                                    .map(h -> Map.of(
+                                            "command", h.command(),
+                                            "description", h.description()
+                                    ))
+                                    .toList();
+
+                            sendMessage(session, Map.of(
+                                    "type", "ai.command.hints",
+                                    "payload", Map.of("hints", hintsList)
+                            ));
+                        }
+                    } catch (Exception e) {
+                        log.error("Failed to send command hints: {}", e.getMessage());
+                    }
+                },
+                // onError
+                (errorMessage) -> {
+                    log.warn("Command hint error: {}", errorMessage);
+                }
+        );
+    }
+
+    /**
+     * Handle command completion (called when prompt is detected)
+     */
+    private void handleCommandComplete(String sessionId, String output) {
+        // Find any commands being tracked for this session
+        for (Map.Entry<String, String> entry : commandSessionMap.entrySet()) {
+            String commandId = entry.getKey();
+            String sId = entry.getValue();
+
+            if (sId.equals(sessionId)) {
+                StringBuilder outputBuffer = commandOutputs.get(commandId);
+                String command = commandMap.get(commandId);
+                String fullOutput = outputBuffer != null ? outputBuffer.toString() : "";
+
+                // Clean up tracking
+                commandOutputs.remove(commandId);
+                commandSessionMap.remove(commandId);
+                commandMap.remove(commandId);
+
+                // Get session and send completion notification
+                WebSocketSession session = sessions.get(sessionId);
+                if (session != null && session.isOpen()) {
+                    try {
+                        // Send command complete notification
+                        sendMessage(session, Map.of(
+                                "type", "ai.command.complete",
+                                "payload", Map.of(
+                                        "commandId", commandId,
+                                        "output", fullOutput
+                                )
+                        ));
+
+                        // Analyze output for follow-up suggestions (async)
+                        analyzeCommandOutputAsync(session, command, fullOutput, commandId);
+                    } catch (Exception e) {
+                        log.error("Failed to send command complete: {}", e.getMessage());
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    /**
+     * Analyze command output asynchronously for follow-up suggestions
+     */
+    private void analyzeCommandOutputAsync(WebSocketSession session, String command, String output, String commandId) {
+        CompletableFuture.runAsync(() -> {
+            try {
+                aiService.analyzeCommandOutput(
+                        command,
+                        output,
+                        // onProgress - not used for analysis
+                        (partial) -> {},
+                        // onComplete
+                        (result) -> {
+                            try {
+                                if (session.isOpen() && result.followUpNeeded()) {
+                                    sendMessage(session, Map.of(
+                                            "type", "ai.followup",
+                                            "payload", Map.of(
+                                                    "commandId", commandId,
+                                                    "suggestion", result.suggestion(),
+                                                    "followUpCommand", result.followUpCommand()
+                                            )
+                                    ));
+                                }
+                            } catch (Exception e) {
+                                log.error("Failed to send follow-up: {}", e.getMessage());
+                            }
+                        },
+                        // onError
+                        (error) -> {
+                            log.warn("Failed to analyze command output: {}", error);
+                        }
+                );
+            } catch (Exception e) {
+                log.error("Error in async output analysis: {}", e.getMessage());
+            }
+        });
     }
     
     @Override
@@ -260,6 +476,24 @@ public class SshWebSocketHandler implements WebSocketHandler {
                                 "type", "terminal.output",
                                 "payload", Map.of("data", output)
                         ));
+
+                        // Track command output if there's an active command for this session
+                        String sessionId = session.getId();
+                        for (Map.Entry<String, String> entry : commandSessionMap.entrySet()) {
+                            if (entry.getValue().equals(sessionId)) {
+                                String commandId = entry.getKey();
+                                StringBuilder outputBuffer = commandOutputs.get(commandId);
+                                if (outputBuffer != null) {
+                                    outputBuffer.append(output);
+                                }
+
+                                // Check for prompt (command completion)
+                                if (PROMPT_PATTERN.matcher(output).find()) {
+                                    handleCommandComplete(sessionId, output);
+                                }
+                                break;
+                            }
+                        }
                     }
                 }
             } catch (Exception e) {

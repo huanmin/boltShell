@@ -1,9 +1,12 @@
+import { useEffect } from 'react';
 import { Tabs } from 'antd';
 import { CloseOutlined, FolderOutlined, CodeOutlined } from '@ant-design/icons';
 import '@xterm/xterm/css/xterm.css';
 import { useAppStore } from '../../stores/appStore';
 import FileManager from '../FileManager/FileManager';
 import TerminalSession from './TerminalSession';
+import AiResponsePanel from './AiResponsePanel';
+import CommandHintPanel from './CommandHintPanel';
 import './index.css';
 
 const TerminalArea = () => {
@@ -12,13 +15,44 @@ const TerminalArea = () => {
     activeSessionId,
     connections,
     removeSession,
-    setActiveSession
+    setActiveSession,
+    aiResponse,
+    commandHints,
+    clearAiResponse,
+    clearCommandHints
   } = useAppStore();
 
   // 获取当前会话的连接信息
   const activeSession = sessions.find(s => s.id === activeSessionId);
   const activeConnection = connections.find(c => c.id === activeSession?.connectionId);
   const isFileManager = activeSession?.type === 'file';
+
+  // 全局键盘快捷键
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Escape 关闭 AI 面板或命令提示
+      if (e.key === 'Escape') {
+        if (commandHints.length > 0) {
+          clearCommandHints();
+        } else if (aiResponse) {
+          clearAiResponse();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [aiResponse, commandHints, clearAiResponse, clearCommandHints]);
+
+  // 执行 AI 建议的命令
+  const handleExecuteCommand = (command: string, historyId?: string) => {
+    // 通过自定义事件发送命令到所有终端（只有活跃的会响应）
+    window.dispatchEvent(new CustomEvent('execute-ai-command', {
+      detail: { command, historyId }
+    }));
+  };
 
   // 关闭会话
   const handleCloseTab = (sessionId: string) => {
@@ -79,6 +113,23 @@ const TerminalArea = () => {
               />
             );
           })}
+
+        {/* AI 响应面板 - 浮动卡片 */}
+        {aiResponse && !isFileManager && (
+          <AiResponsePanel onExecuteCommand={handleExecuteCommand} />
+        )}
+
+        {/* 命令提示面板 */}
+        {commandHints.length > 0 && !isFileManager && (
+          <CommandHintPanel
+            onSelectHint={(command) => {
+              // 通过自定义事件发送命令到终端
+              window.dispatchEvent(new CustomEvent('execute-ai-command', {
+                detail: { command, historyId: `hint-${Date.now()}` }
+              }));
+            }}
+          />
+        )}
       </div>
     </div>
   );
