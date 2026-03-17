@@ -1,9 +1,10 @@
-import { Input, List, Button, Space, Tooltip, Spin, message, Modal, Dropdown } from 'antd';
+import { Input, List, Button, Space, Tooltip, Spin, message, Dropdown } from 'antd';
 import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, MenuFoldOutlined, MenuUnfoldOutlined, FolderOutlined } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import { useEffect, useState } from 'react';
 import { useAppStore, type Connection } from '../../stores/appStore';
 import { connectionApi } from '../../api';
+import { useConfirmModal } from '../common/ConfirmModal';
 import './index.css';
 
 const statusColors = {
@@ -14,12 +15,12 @@ const statusColors = {
 };
 
 const Sidebar = () => {
-  const { 
-    connections, 
-    setConnections, 
-    sessions, 
-    sidebarCollapsed, 
-    toggleSidebar, 
+  const {
+    connections,
+    setConnections,
+    sessions,
+    sidebarCollapsed,
+    toggleSidebar,
     updateConnectionStatus,
     addSession,
     setActiveSession,
@@ -28,7 +29,10 @@ const Sidebar = () => {
     showAddConnectionModal,
     showEditConnectionModal
   } = useAppStore();
-  
+
+  // 使用 hook 获取确认弹框方法
+  const { confirmDelete } = useConfirmModal();
+
   // 搜索关键词
   const [searchKeyword, setSearchKeyword] = useState('');
 
@@ -138,13 +142,9 @@ const Sidebar = () => {
   };
 
   const handleDelete = (conn: Connection) => {
-    Modal.confirm({
+    confirmDelete({
       title: '确认删除',
       content: `确定要删除连接 "${conn.name}" 吗？此操作不可恢复。`,
-      okText: '删除',
-      okButtonProps: { danger: true },
-      cancelText: '取消',
-      centered: true,
       onOk: async () => {
         try {
           await connectionApi.delete(conn.id);

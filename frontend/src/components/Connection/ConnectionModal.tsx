@@ -102,8 +102,8 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ open, onClose, connec
           port: values.port || 22,
           username: values.username,
           authType: values.authType,
-          password: values.authType === 'PASSWORD' && values.rememberCredential ? values.password : undefined,
-          privateKey: values.authType === 'KEY' && values.rememberCredential ? values.privateKey : undefined,
+          password: values.authType === 'PASSWORD' ? values.password : undefined,
+          privateKey: values.authType === 'KEY' ? values.privateKey : undefined,
           rememberCredential: values.rememberCredential || false,
         });
 
@@ -140,7 +140,7 @@ const ConnectionModal: React.FC<ConnectionModalProps> = ({ open, onClose, connec
         form={form}
         layout="vertical"
         onFinish={handleSubmit}
-        initialValues={{ port: 22, authType: 'PASSWORD', rememberCredential: false }}
+        initialValues={{ port: 22, authType: 'PASSWORD', rememberCredential: true }}
       >
         <Form.Item
           name="name"

@@ -2,12 +2,16 @@ import { useEffect, useRef, useCallback } from 'react';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
-import { useAppStore, type Connection, type AiResponse, type AiHistoryItem } from '../../stores/appStore';
+import { useAppStore, type Connection, type TerminalMode } from '../../stores/appStore';
 
 interface TerminalSessionProps {
   connection: Connection;
   isActive: boolean;
 }
+
+// 终端模式提示信息
+const SHELL_PLACEHOLDER = 'Ctrl+Shift+I 切换AI终端模式，Ctrl+Shift+Y 唤出命令助手';
+const AGENT_PLACEHOLDER = '输入自然语言或命令，AI将智能响应，试试打个招呼吧';
 
 function defaultWsBase() {
   if (typeof window === 'undefined') return 'ws://localhost:18080';
@@ -39,7 +43,7 @@ const TerminalSession = ({ connection, isActive }: TerminalSessionProps) => {
   // 是否正在收集命令输出
   const collectingOutputRef = useRef(false);
   // 输入防抖定时器
-  const inputDebounceRef = useRef<NodeJS.Timeout>();
+  const inputDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // 上次输入的命令（用于命令提示）
   const lastInputRef = useRef<string>('');
 
@@ -51,6 +55,13 @@ const TerminalSession = ({ connection, isActive }: TerminalSessionProps) => {
   const updateAiHistoryFollowUp = useAppStore((state) => state.updateAiHistoryFollowUp);
   const setCommandHints = useAppStore((state) => state.setCommandHints);
   const clearCommandHints = useAppStore((state) => state.clearCommandHints);
+  const terminalMode = useAppStore((state) => state.terminalMode);
+  const currentModeRef = useRef<TerminalMode>(terminalMode);
+
+  // 保持 terminalMode 的引用最新
+  useEffect(() => {
+    currentModeRef.current = terminalMode;
+  }, [terminalMode]);
 
   // 检测中文
   const containsChinese = useCallback((text: string) => /[\u4e00-\u9fa5]/.test(text), []);
@@ -97,6 +108,9 @@ const TerminalSession = ({ connection, isActive }: TerminalSessionProps) => {
       // 如果正在等待 AI 响应，忽略输入
       if (waitingForAiRef.current) return;
 
+      // 获取当前模式
+      const currentMode = currentModeRef.current;
+
       // 回车键
       if (data === '\r' || data === '\n') {
         const buffer = inputBuffer.trim();
@@ -105,8 +119,8 @@ const TerminalSession = ({ connection, isActive }: TerminalSessionProps) => {
         // 清除命令提示
         clearCommandHints();
 
-        // 检测是否是中文问题
-        if (containsChinese(buffer)) {
+        // Agent 模式下检测中文
+        if (currentMode === 'agent' && containsChinese(buffer)) {
           // 发送给 AI
           setAiResponse({
             sessionId: connection.id,
@@ -193,7 +207,9 @@ const TerminalSession = ({ connection, isActive }: TerminalSessionProps) => {
       // 命令提示：非中文输入且长度大于2时，请求提示
       if (!containsChinese(inputBuffer) && inputBuffer.length > 2 && inputBuffer !== lastInputRef.current) {
         lastInputRef.current = inputBuffer;
-        clearTimeout(inputDebounceRef.current);
+        if (inputDebounceRef.current) {
+          clearTimeout(inputDebounceRef.current);
+        }
         inputDebounceRef.current = setTimeout(() => {
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({
@@ -224,7 +240,6 @@ const TerminalSession = ({ connection, isActive }: TerminalSessionProps) => {
           case 'connection.status':
             if (msg.payload.status === 'connected') {
               xterm.writeln('\x1b[32m✓ SSH 连接成功\x1b[0m');
-              xterm.writeln('');
               setTimeout(() => {
                 fitAddon.fit();
                 xterm.scrollToBottom();
@@ -249,7 +264,14 @@ const TerminalSession = ({ connection, isActive }: TerminalSessionProps) => {
 
           case 'ai.response':
             waitingForAiRef.current = false;
-            // 更新 AI 响应状态（显示在独立面板）
+            // 发送给命令助手（如果有打开的话）
+            window.dispatchEvent(new CustomEvent('ai-command-assistant-response', {
+              detail: {
+                command: msg.payload.command,
+                explanation: msg.payload.explanation
+              }
+            }));
+            // 更新 AI 响应状态（显示在独立面板 - Agent 模式）
             setAiResponse({
               sessionId: connection.id,
               query: msg.payload.query || '',
@@ -312,6 +334,7 @@ const TerminalSession = ({ connection, isActive }: TerminalSessionProps) => {
                 riskLevel: 'high',
                 warnings: [],
                 loading: false,
+                streamingText: '',
               });
             }
             break;
@@ -390,6 +413,90 @@ const TerminalSession = ({ connection, isActive }: TerminalSessionProps) => {
     };
   }, [isActive, clearAiResponse]);
 
+  // 监听命令助手查询事件（Shell 模式）
+  useEffect(() => {
+    const handleAssistantQuery = (e: CustomEvent) => {
+      if (!isActive) return;
+
+      const ws = wsRef.current;
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        waitingForAiRef.current = true;
+
+        ws.send(JSON.stringify({
+          type: 'ai.chat',
+          payload: { message: e.detail.query, query: e.detail.query }
+        }));
+      }
+    };
+
+    window.addEventListener('ai-command-assistant-query', handleAssistantQuery as EventListener);
+    return () => {
+      window.removeEventListener('ai-command-assistant-query', handleAssistantQuery as EventListener);
+    };
+  }, [isActive]);
+
+  // 监听插入命令到终端事件
+  useEffect(() => {
+    const handleInsertCommand = (e: CustomEvent) => {
+      if (!isActive) return;
+
+      const ws = wsRef.current;
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        // 发送命令到终端（不自动执行）
+        const command = e.detail.command;
+        // 发送每个字符
+        for (const char of command) {
+          ws.send(JSON.stringify({
+            type: 'terminal.input',
+            payload: { data: char }
+          }));
+        }
+      }
+    };
+
+    window.addEventListener('insert-command-to-terminal', handleInsertCommand as EventListener);
+    return () => {
+      window.removeEventListener('insert-command-to-terminal', handleInsertCommand as EventListener);
+    };
+  }, [isActive]);
+
+  // 监听拒绝命令事件 - 重新请求 AI
+  useEffect(() => {
+    const handleRejectCommand = (e: CustomEvent) => {
+      if (!isActive) return;
+
+      const ws = wsRef.current;
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        const { query, reason } = e.detail;
+        // 发送拒绝原因和原查询给 AI
+        setAiResponse({
+          sessionId: connection.id,
+          query: query,
+          command: '',
+          explanation: '',
+          riskLevel: 'low',
+          warnings: [],
+          loading: true,
+          streamingText: '',
+        });
+        waitingForAiRef.current = true;
+
+        ws.send(JSON.stringify({
+          type: 'ai.chat',
+          payload: {
+            message: `用户拒绝了上一个命令建议。原因：${reason}。请重新生成命令。原始需求：${query}`,
+            query: query
+          }
+        }));
+      }
+    };
+
+    window.addEventListener('reject-ai-command', handleRejectCommand as EventListener);
+    return () => {
+      window.removeEventListener('reject-ai-command', handleRejectCommand as EventListener);
+    };
+  }, [isActive, connection.id, setAiResponse]);
+
   // 当 isActive 变化时适配终端大小
   useEffect(() => {
     if (isActive && fitAddonRef.current && xtermRef.current) {
@@ -402,12 +509,25 @@ const TerminalSession = ({ connection, isActive }: TerminalSessionProps) => {
 
   return (
     <div
-      ref={containerRef}
-      className="terminal-container"
+      className="terminal-wrapper-inner"
       style={{
         display: isActive ? 'flex' : 'none',
+        position: 'relative',
+        flex: 1,
+        minHeight: 0,
       }}
-    />
+    >
+      <div
+        ref={containerRef}
+        className="terminal-container"
+      />
+      {/* 模式提示语覆盖层 - 跟随命令行 */}
+      <div className="terminal-placeholder-overlay">
+        <span className="placeholder-text">
+          {terminalMode === 'shell' ? SHELL_PLACEHOLDER : AGENT_PLACEHOLDER}
+        </span>
+      </div>
+    </div>
   );
 };
 

@@ -61,6 +61,8 @@
   flex-direction: column;
   position: relative;
   border-left: 2px solid #30363d;
+  height: 100%;
+  overflow: hidden;
 }
 
 /* Light Theme */

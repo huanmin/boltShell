@@ -23,8 +23,8 @@ public class AiConfig {
     private String baseUrl;
     private String model;
 
-    // Sensitive - not returned in API responses
-    private transient String apiKey;
+    // Sensitive - encrypted when stored, not returned in API responses
+    private String apiKey;
 
     private Map<String, Object> extraConfig;
 

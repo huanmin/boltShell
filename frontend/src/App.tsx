@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { ConfigProvider, theme as antdTheme } from 'antd';
+import { App as AntdApp, ConfigProvider, theme as antdTheme } from 'antd';
 import AppLayout from './components/Layout';
 import { useAppStore } from './stores/appStore';
 
@@ -106,7 +106,9 @@ function App() {
 
   return (
     <ConfigProvider theme={theme === 'dark' ? darkTheme : lightTheme}>
-      <AppLayout />
+      <AntdApp>
+        <AppLayout />
+      </AntdApp>
     </ConfigProvider>
   );
 }

@@ -105,11 +105,6 @@ public class CredentialService {
             if (connection.getPassphrase() != null) {
                 connection.setPassphrase(encryptionService.encrypt(connection.getPassphrase()));
             }
-        } else {
-            // Clear sensitive data - don't save
-            connection.setPassword(null);
-            connection.setPrivateKey(null);
-            connection.setPassphrase(null);
         }
         
         connections.add(connection);
@@ -140,16 +135,40 @@ public class CredentialService {
         if (updates.getPort() != null) conn.setPort(updates.getPort());
         if (updates.getUsername() != null) conn.setUsername(updates.getUsername());
         if (updates.getAuthType() != null) conn.setAuthType(updates.getAuthType());
+        if (updates.getRememberCredential() != null) conn.setRememberCredential(updates.getRememberCredential());
         
         // Update sensitive fields
         if (updates.getPassword() != null) {
-            conn.setPassword(encryptionService.encrypt(updates.getPassword()));
+            if (Boolean.TRUE.equals(conn.getRememberCredential())) {
+                conn.setPassword(encryptionService.encrypt(updates.getPassword()));
+            } else {
+                // Keep in memory for current runtime, but it won't be persisted
+                conn.setPassword(updates.getPassword());
+            }
         }
         if (updates.getPrivateKey() != null) {
-            conn.setPrivateKey(encryptionService.encrypt(updates.getPrivateKey()));
+            if (Boolean.TRUE.equals(conn.getRememberCredential())) {
+                conn.setPrivateKey(encryptionService.encrypt(updates.getPrivateKey()));
+            } else {
+                conn.setPrivateKey(updates.getPrivateKey());
+            }
         }
         if (updates.getPassphrase() != null) {
-            conn.setPassphrase(encryptionService.encrypt(updates.getPassphrase()));
+            if (Boolean.TRUE.equals(conn.getRememberCredential())) {
+                conn.setPassphrase(encryptionService.encrypt(updates.getPassphrase()));
+            } else {
+                conn.setPassphrase(updates.getPassphrase());
+            }
+        }
+
+        // If user turned off remembering credentials and didn't provide new secrets, drop any existing ones.
+        if (Boolean.FALSE.equals(conn.getRememberCredential())
+                && updates.getPassword() == null
+                && updates.getPrivateKey() == null
+                && updates.getPassphrase() == null) {
+            conn.setPassword(null);
+            conn.setPrivateKey(null);
+            conn.setPassphrase(null);
         }
         
         saveCredentials();
@@ -302,23 +321,51 @@ public class CredentialService {
     
     private void loadCredentials() {
         File file = new File(configService.getConfigPath(), CREDENTIALS_FILE);
-        
+
         if (!file.exists()) {
             log.info("Credentials file not found, starting with empty list");
             connections = new ArrayList<>();
             return;
         }
-        
+
         try {
             String encrypted = Files.readString(file.toPath());
             String decrypted = encryptionService.decrypt(encrypted);
-            
+
             Map<String, List<Connection>> data = objectMapper.readValue(
                     decrypted,
                     new TypeReference<Map<String, List<Connection>>>() {}
             );
-            
+
             connections = data.getOrDefault("connections", new ArrayList<>());
+
+            // Decrypt passwords for connections with rememberCredential=true
+            for (Connection conn : connections) {
+                if (Boolean.TRUE.equals(conn.getRememberCredential())) {
+                    if (conn.getPassword() != null && !conn.getPassword().isEmpty()) {
+                        try {
+                            conn.setPassword(encryptionService.decrypt(conn.getPassword()));
+                        } catch (Exception e) {
+                            log.warn("Failed to decrypt password for {}: {}", conn.getId(), e.getMessage());
+                        }
+                    }
+                    if (conn.getPrivateKey() != null && !conn.getPrivateKey().isEmpty()) {
+                        try {
+                            conn.setPrivateKey(encryptionService.decrypt(conn.getPrivateKey()));
+                        } catch (Exception e) {
+                            log.warn("Failed to decrypt private key for {}: {}", conn.getId(), e.getMessage());
+                        }
+                    }
+                    if (conn.getPassphrase() != null && !conn.getPassphrase().isEmpty()) {
+                        try {
+                            conn.setPassphrase(encryptionService.decrypt(conn.getPassphrase()));
+                        } catch (Exception e) {
+                            log.warn("Failed to decrypt passphrase for {}: {}", conn.getId(), e.getMessage());
+                        }
+                    }
+                }
+            }
+
             log.info("Loaded {} connections from credentials file", connections.size());
         } catch (Exception e) {
             log.error("Failed to load credentials: {}", e.getMessage());
@@ -331,7 +378,24 @@ public class CredentialService {
         
         try {
             Map<String, List<Connection>> data = new HashMap<>();
-            data.put("connections", connections);
+            // Never persist secrets unless rememberCredential=true
+            List<Connection> toPersist = connections.stream().map(c -> {
+                if (Boolean.TRUE.equals(c.getRememberCredential())) {
+                    return c;
+                }
+                return Connection.builder()
+                        .id(c.getId())
+                        .name(c.getName())
+                        .host(c.getHost())
+                        .port(c.getPort())
+                        .username(c.getUsername())
+                        .authType(c.getAuthType())
+                        .rememberCredential(false)
+                        .createdAt(c.getCreatedAt())
+                        .lastConnectedAt(c.getLastConnectedAt())
+                        .build();
+            }).toList();
+            data.put("connections", toPersist);
             
             String json = objectMapper.writeValueAsString(data);
             String encrypted = encryptionService.encrypt(json);
@@ -361,7 +425,18 @@ public class CredentialService {
             Map<String, Object> data = objectMapper.readValue(decrypted, new TypeReference<Map<String, Object>>() {});
             aiConfigs = ((List<Map<String, Object>>) data.getOrDefault("configs", new ArrayList<>()))
                     .stream()
-                    .map(m -> objectMapper.convertValue(m, AiConfig.class))
+                    .map(m -> {
+                        AiConfig config = objectMapper.convertValue(m, AiConfig.class);
+                        // Decrypt API key if present
+                        if (config.getApiKey() != null && !config.getApiKey().isEmpty()) {
+                            try {
+                                config.setApiKey(encryptionService.decrypt(config.getApiKey()));
+                            } catch (Exception e) {
+                                log.warn("Failed to decrypt API key for {}: {}", config.getId(), e.getMessage());
+                            }
+                        }
+                        return config;
+                    })
                     .toList();
             activeModelProvider = (String) data.get("activeProvider");
 

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 export type Theme = 'light' | 'dark';
+export type TerminalMode = 'shell' | 'agent';
 
 export interface Connection {
   id: string;
@@ -98,6 +99,16 @@ interface AppState {
   clearCommandHints: () => void;
   selectedHintIndex: number;
   setSelectedHintIndex: (index: number) => void;
+
+  // 终端模式 (shell/agent)
+  terminalMode: TerminalMode;
+  setTerminalMode: (mode: TerminalMode) => void;
+  toggleTerminalMode: () => void;
+
+  // 命令助手面板
+  commandAssistantVisible: boolean;
+  showCommandAssistant: () => void;
+  hideCommandAssistant: () => void;
 }
 
 export interface AiSuggestion {
@@ -234,6 +245,18 @@ export const useAppStore = create<AppState>()(
       clearCommandHints: () => set({ commandHints: [], selectedHintIndex: 0 }),
       selectedHintIndex: 0,
       setSelectedHintIndex: (index) => set({ selectedHintIndex: index }),
+
+      // 终端模式
+      terminalMode: 'agent',
+      setTerminalMode: (mode) => set({ terminalMode: mode }),
+      toggleTerminalMode: () => set((state) => ({
+        terminalMode: state.terminalMode === 'shell' ? 'agent' : 'shell'
+      })),
+
+      // 命令助手面板
+      commandAssistantVisible: false,
+      showCommandAssistant: () => set({ commandAssistantVisible: true }),
+      hideCommandAssistant: () => set({ commandAssistantVisible: false }),
     }),
     {
       name: 'app-storage',

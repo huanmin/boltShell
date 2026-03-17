@@ -1,6 +1,14 @@
 import axios from 'axios';
 
-const API_BASE = 'http://localhost:18080/api/v1';
+function defaultApiBase() {
+  if (typeof window === 'undefined') return 'http://localhost:18080/api/v1';
+  const proto = window.location.protocol;
+  const host = window.location.host;  // includes port
+  return `${proto}//${host}/api/v1`;
+}
+
+// Use VITE_API_BASE if set, otherwise use relative URL (for proxy)
+const API_BASE = import.meta.env.VITE_API_BASE || defaultApiBase();
 
 export interface Connection {
   id: string;

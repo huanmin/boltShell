@@ -1,12 +1,10 @@
 import { useEffect } from 'react';
-import { Tabs } from 'antd';
-import { CloseOutlined, FolderOutlined, CodeOutlined } from '@ant-design/icons';
-import '@xterm/xterm/css/xterm.css';
+import { Tabs, Switch, Tooltip } from 'antd';
+import { CloseOutlined, FolderOutlined, CodeOutlined, RobotOutlined, CodeSandboxOutlined } from '@ant-design/icons';
 import { useAppStore } from '../../stores/appStore';
 import FileManager from '../FileManager/FileManager';
-import TerminalSession from './TerminalSession';
-import AiResponsePanel from './AiResponsePanel';
-import CommandHintPanel from './CommandHintPanel';
+import CustomTerminal from './CustomTerminal';
+import CommandAssistant from './CommandAssistant';
 import './index.css';
 
 const TerminalArea = () => {
@@ -16,10 +14,11 @@ const TerminalArea = () => {
     connections,
     removeSession,
     setActiveSession,
-    aiResponse,
-    commandHints,
-    clearAiResponse,
-    clearCommandHints
+    terminalMode,
+    toggleTerminalMode,
+    commandAssistantVisible,
+    showCommandAssistant,
+    hideCommandAssistant
   } = useAppStore();
 
   // 获取当前会话的连接信息
@@ -30,13 +29,23 @@ const TerminalArea = () => {
   // 全局键盘快捷键
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Escape 关闭 AI 面板或命令提示
-      if (e.key === 'Escape') {
-        if (commandHints.length > 0) {
-          clearCommandHints();
-        } else if (aiResponse) {
-          clearAiResponse();
-        }
+      // Ctrl+Shift+I 切换终端模式
+      if (e.ctrlKey && e.shiftKey && e.key === 'I') {
+        e.preventDefault();
+        toggleTerminalMode();
+        return;
+      }
+
+      // Ctrl+Shift+Y 唤出命令助手 (仅 Shell 模式)
+      if (e.ctrlKey && e.shiftKey && e.key === 'Y' && terminalMode === 'shell') {
+        e.preventDefault();
+        showCommandAssistant();
+        return;
+      }
+
+      // Escape 关闭命令助手
+      if (e.key === 'Escape' && commandAssistantVisible) {
+        hideCommandAssistant();
       }
     };
 
@@ -44,15 +53,7 @@ const TerminalArea = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [aiResponse, commandHints, clearAiResponse, clearCommandHints]);
-
-  // 执行 AI 建议的命令
-  const handleExecuteCommand = (command: string, historyId?: string) => {
-    // 通过自定义事件发送命令到所有终端（只有活跃的会响应）
-    window.dispatchEvent(new CustomEvent('execute-ai-command', {
-      detail: { command, historyId }
-    }));
-  };
+  }, [toggleTerminalMode, showCommandAssistant, hideCommandAssistant, commandAssistantVisible, terminalMode]);
 
   // 关闭会话
   const handleCloseTab = (sessionId: string) => {
@@ -90,6 +91,24 @@ const TerminalArea = () => {
           }))}
           onChange={(key) => setActiveSession(key)}
         />
+        {/* 模式切换控件 */}
+        <div className="mode-switch-container">
+          <Tooltip title="Ctrl+Shift+I 切换模式">
+            <div className="mode-switch">
+              <span className={`mode-label ${terminalMode === 'shell' ? 'active' : ''}`}>
+                <CodeSandboxOutlined /> Shell
+              </span>
+              <Switch
+                checked={terminalMode === 'agent'}
+                onChange={toggleTerminalMode}
+                size="small"
+              />
+              <span className={`mode-label ${terminalMode === 'agent' ? 'active' : ''}`}>
+                <RobotOutlined /> Agent
+              </span>
+            </div>
+          </Tooltip>
+        </div>
       </div>
 
       {/* 内容区域 */}
@@ -99,14 +118,14 @@ const TerminalArea = () => {
           <FileManager connectionId={activeConnection.id} />
         )}
 
-        {/* 终端会话 - 每个会话独立渲染，切换时保持连接 */}
+        {/* 自定义终端会话 - 每个会话独立渲染，切换时保持连接 */}
         {sessions
           .filter(s => s.type !== 'file')
           .map(session => {
             const conn = connections.find(c => c.id === session.connectionId);
             if (!conn) return null;
             return (
-              <TerminalSession
+              <CustomTerminal
                 key={session.id}
                 connection={conn}
                 isActive={session.id === activeSessionId && !isFileManager}
@@ -114,21 +133,9 @@ const TerminalArea = () => {
             );
           })}
 
-        {/* AI 响应面板 - 浮动卡片 */}
-        {aiResponse && !isFileManager && (
-          <AiResponsePanel onExecuteCommand={handleExecuteCommand} />
-        )}
-
-        {/* 命令提示面板 */}
-        {commandHints.length > 0 && !isFileManager && (
-          <CommandHintPanel
-            onSelectHint={(command) => {
-              // 通过自定义事件发送命令到终端
-              window.dispatchEvent(new CustomEvent('execute-ai-command', {
-                detail: { command, historyId: `hint-${Date.now()}` }
-              }));
-            }}
-          />
+        {/* 命令助手面板 - Shell 模式下可用 */}
+        {commandAssistantVisible && !isFileManager && terminalMode === 'shell' && (
+          <CommandAssistant onClose={hideCommandAssistant} />
         )}
       </div>
     </div>

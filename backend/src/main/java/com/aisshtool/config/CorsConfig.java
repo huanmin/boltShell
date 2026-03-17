@@ -17,13 +17,17 @@ public class CorsConfig {
     
     @Value("${app.frontend.url:http://localhost:5173}")
     private String frontendUrl;
-    
+
     @Bean
     public CorsFilter corsFilter() {
         CorsConfiguration config = new CorsConfiguration();
-        
-        // Allow frontend origin
-        config.setAllowedOrigins(Arrays.asList(frontendUrl));
+
+        // Allow frontend origins (both localhost and 127.0.0.1 to avoid IPv6 resolution issues)
+        config.setAllowedOrigins(Arrays.asList(
+            frontendUrl,
+            "http://localhost:5173",
+            "http://127.0.0.1:5173"
+        ));
         
         // Allow all common HTTP methods
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));

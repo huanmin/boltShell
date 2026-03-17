@@ -1,0 +1,245 @@
+/* 命令助手面板 - 可拖动悬浮框 */
+.command-assistant-panel {
+  position: fixed;
+  width: 480px;
+  max-width: calc(100vw - 40px);
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  z-index: 1100;
+  overflow: hidden;
+  cursor: default;
+}
+
+.command-assistant-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  background: #21262d;
+  border-bottom: 1px solid #30363d;
+  cursor: move;
+  user-select: none;
+}
+
+.drag-handle {
+  color: #6e7681;
+  margin-right: 8px;
+  cursor: grab;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.command-assistant-title {
+  flex: 1;
+  font-weight: 500;
+  color: #58a6ff;
+  font-size: 14px;
+}
+
+.command-assistant-header .close-btn {
+  color: #6e7681;
+}
+
+.command-assistant-header .close-btn:hover {
+  color: #c9d1d9;
+  background: #30363d;
+}
+
+.command-assistant-body {
+  padding: 16px;
+}
+
+/* 查询输入区域 */
+.query-input-area {
+  margin-bottom: 12px;
+}
+
+.query-input {
+  margin-bottom: 8px;
+}
+
+.query-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.query-actions .hint-text {
+  margin-left: auto;
+  font-size: 12px;
+  color: #6e7681;
+}
+
+/* 加载状态 */
+.loading-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  color: #8b949e;
+  font-size: 13px;
+  justify-content: center;
+}
+
+/* 命令显示区域 */
+.command-display-area {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #21262d;
+}
+
+.command-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #0d1117;
+  border: 1px solid #21262d;
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+
+.copy-btn {
+  background: transparent;
+  border: none;
+  color: #6e7681;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.copy-btn:hover {
+  color: #58a6ff;
+}
+
+.command-text {
+  flex: 1;
+  font-family: Monaco, Menlo, 'Courier New', monospace;
+  font-size: 14px;
+  color: #58a6ff;
+  background: transparent;
+  padding: 0;
+  word-break: break-all;
+}
+
+.shell-tag {
+  padding: 2px 8px;
+  background: rgba(88, 166, 255, 0.15);
+  color: #58a6ff;
+  border-radius: 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.insert-action {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.insert-action .shortcut {
+  margin-left: 4px;
+  opacity: 0.8;
+  font-size: 12px;
+}
+
+/* 解释区域 */
+.explanation-area {
+  margin-top: 12px;
+  padding: 12px;
+  background: #0d1117;
+  border-radius: 6px;
+  border: 1px solid #21262d;
+}
+
+.explanation-header {
+  color: #8b949e;
+  font-size: 12px;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.explanation-content {
+  color: #c9d1d9;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+/* Light Theme */
+[data-theme="light"] .command-assistant-panel {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="light"] .command-assistant-header {
+  background: #f8fafc;
+  border-bottom-color: #e2e8f0;
+}
+
+[data-theme="light"] .drag-handle {
+  color: #94a3b8;
+}
+
+[data-theme="light"] .command-assistant-title {
+  color: #3b82f6;
+}
+
+[data-theme="light"] .command-assistant-header .close-btn {
+  color: #94a3b8;
+}
+
+[data-theme="light"] .command-assistant-header .close-btn:hover {
+  color: #1e293b;
+  background: #f1f5f9;
+}
+
+[data-theme="light"] .query-actions .hint-text {
+  color: #94a3b8;
+}
+
+[data-theme="light"] .command-display-area {
+  border-top-color: #e2e8f0;
+}
+
+[data-theme="light"] .command-box {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+[data-theme="light"] .copy-btn {
+  color: #94a3b8;
+}
+
+[data-theme="light"] .copy-btn:hover {
+  color: #3b82f6;
+}
+
+[data-theme="light"] .command-text {
+  color: #3b82f6;
+}
+
+[data-theme="light"] .shell-tag {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+
+[data-theme="light"] .explanation-area {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+[data-theme="light"] .explanation-header {
+  color: #64748b;
+}
+
+[data-theme="light"] .explanation-content {
+  color: #1e293b;
+}

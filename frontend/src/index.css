@@ -292,8 +292,19 @@ body {
 /* ========== 确认对话框样式 - 科技风 (Dark Theme) ========== */
 
 /* 默认确认对话框 - 深色 */
+.ant-modal-confirm .ant-modal-content {
+  background: linear-gradient(145deg, #1a1f2e 0%, #0d1117 100%) !important;
+  border: 1px solid rgba(56, 189, 248, 0.2) !important;
+  border-radius: 16px !important;
+  box-shadow:
+    0 0 0 1px rgba(56, 189, 248, 0.1),
+    0 0 20px rgba(56, 189, 248, 0.1),
+    0 20px 60px rgba(0, 0, 0, 0.5) !important;
+}
+
 .ant-modal-confirm .ant-modal-body {
   padding: 32px 24px !important;
+  background: transparent !important;
 }
 
 .ant-modal-confirm-title {
@@ -323,8 +334,19 @@ body {
   box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
 }
 
+[data-theme="dark"] .ant-modal-confirm .ant-modal-content {
+  background: linear-gradient(145deg, #1a1f2e 0%, #0d1117 100%) !important;
+  border: 1px solid rgba(56, 189, 248, 0.2) !important;
+  border-radius: 16px !important;
+  box-shadow:
+    0 0 0 1px rgba(56, 189, 248, 0.1),
+    0 0 20px rgba(56, 189, 248, 0.1),
+    0 20px 60px rgba(0, 0, 0, 0.5) !important;
+}
+
 [data-theme="dark"] .ant-modal-confirm .ant-modal-body {
   padding: 32px 24px !important;
+  background: transparent !important;
 }
 
 [data-theme="dark"] .ant-modal-confirm-title,
@@ -968,4 +990,135 @@ a:hover {
 [data-theme="light"] .ant-modal-confirm .ant-modal-confirm-btns .ant-btn-dangerous {
   background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
   box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+/* ========== confirm-modal-dark 专用样式 ========== */
+/* Modal.confirm 深色主题样式 - 直接应用到根容器 */
+.confirm-modal-dark.ant-modal .ant-modal-content,
+.ant-modal.confirm-modal-dark .ant-modal-content {
+  background: linear-gradient(145deg, #1a1f2e 0%, #0d1117 100%) !important;
+  border: 1px solid rgba(56, 189, 248, 0.2) !important;
+  border-radius: 16px !important;
+  box-shadow:
+    0 0 0 1px rgba(56, 189, 248, 0.1),
+    0 0 20px rgba(56, 189, 248, 0.1),
+    0 20px 60px rgba(0, 0, 0, 0.5) !important;
+}
+
+.confirm-modal-dark.ant-modal .ant-modal-body,
+.ant-modal.confirm-modal-dark .ant-modal-body {
+  background: transparent !important;
+}
+
+.confirm-modal-dark.ant-modal .ant-modal-confirm-body .ant-modal-confirm-title,
+.ant-modal.confirm-modal-dark .ant-modal-confirm-body .ant-modal-confirm-title {
+  color: #e0f2fe !important;
+  font-weight: 600 !important;
+}
+
+.confirm-modal-dark.ant-modal .ant-modal-confirm-body .ant-modal-confirm-content,
+.ant-modal.confirm-modal-dark .ant-modal-confirm-body .ant-modal-confirm-content {
+  color: #94a3b8 !important;
+}
+
+.confirm-modal-dark.ant-modal .ant-modal-confirm-btns,
+.ant-modal.confirm-modal-dark .ant-modal-confirm-btns {
+  margin-top: 24px;
+}
+
+.confirm-modal-dark.ant-modal .ant-modal-confirm-btns .ant-btn-default,
+.ant-modal.confirm-modal-dark .ant-modal-confirm-btns .ant-btn-default {
+  background: rgba(30, 41, 59, 0.8) !important;
+  border: 1px solid rgba(100, 116, 139, 0.3) !important;
+  color: #cbd5e1 !important;
+  border-radius: 8px !important;
+}
+
+.confirm-modal-dark.ant-modal .ant-modal-confirm-btns .ant-btn-default:hover,
+.ant-modal.confirm-modal-dark .ant-modal-confirm-btns .ant-btn-default:hover {
+  background: rgba(51, 65, 85, 0.9) !important;
+  border-color: rgba(56, 189, 248, 0.4) !important;
+  color: #e0f2fe !important;
+}
+
+.confirm-modal-dark.ant-modal .ant-modal-confirm-btns .ant-btn-primary,
+.confirm-modal-dark.ant-modal .ant-modal-confirm-btns .ant-btn-dangerous,
+.ant-modal.confirm-modal-dark .ant-modal-confirm-btns .ant-btn-primary,
+.ant-modal.confirm-modal-dark .ant-modal-confirm-btns .ant-btn-dangerous {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+  border: 1px solid transparent !important;
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.3) !important;
+  border-radius: 8px !important;
+}
+
+.confirm-modal-dark.ant-modal .ant-modal-confirm-btns .ant-btn-primary:hover,
+.confirm-modal-dark.ant-modal .ant-modal-confirm-btns .ant-btn-dangerous:hover,
+.ant-modal.confirm-modal-dark .ant-modal-confirm-btns .ant-btn-primary:hover,
+.ant-modal.confirm-modal-dark .ant-modal-confirm-btns .ant-btn-dangerous:hover {
+  background: linear-gradient(135deg, #f87171 0%, #ef4444 100%) !important;
+  box-shadow: 0 0 25px rgba(239, 68, 68, 0.4) !important;
+}
+
+/* 兼容旧选择器 */
+.confirm-modal-dark .ant-modal-content {
+  background: linear-gradient(145deg, #1a1f2e 0%, #0d1117 100%) !important;
+  border: 1px solid rgba(56, 189, 248, 0.2) !important;
+  border-radius: 16px !important;
+  box-shadow:
+    0 0 0 1px rgba(56, 189, 248, 0.1),
+    0 0 20px rgba(56, 189, 248, 0.1),
+    0 20px 60px rgba(0, 0, 0, 0.5) !important;
+}
+
+.confirm-modal-dark .ant-modal-header {
+  background: transparent !important;
+  border-bottom: 1px solid rgba(56, 189, 248, 0.15) !important;
+}
+
+.confirm-modal-dark .ant-modal-title {
+  color: #e0f2fe !important;
+}
+
+.confirm-modal-dark .ant-modal-body {
+  background: transparent !important;
+  color: #94a3b8 !important;
+}
+
+.confirm-modal-dark .ant-modal-footer {
+  border-top: 1px solid rgba(56, 189, 248, 0.15) !important;
+  background: transparent !important;
+}
+
+.confirm-modal-dark .ant-modal-footer .ant-btn-default {
+  background: rgba(30, 41, 59, 0.8) !important;
+  border: 1px solid rgba(100, 116, 139, 0.3) !important;
+  color: #cbd5e1 !important;
+}
+
+.confirm-modal-dark .ant-modal-footer .ant-btn-default:hover {
+  background: rgba(51, 65, 85, 0.9) !important;
+  border-color: rgba(56, 189, 248, 0.4) !important;
+  color: #e0f2fe !important;
+}
+
+.confirm-modal-dark .ant-modal-footer .ant-btn-primary,
+.confirm-modal-dark .ant-modal-footer .ant-btn-dangerous {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+  border: 1px solid transparent !important;
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.3) !important;
+}
+
+.confirm-modal-dark .ant-modal-footer .ant-btn-primary:hover,
+.confirm-modal-dark .ant-modal-footer .ant-btn-dangerous:hover {
+  background: linear-gradient(135deg, #f87171 0%, #ef4444 100%) !important;
+  box-shadow: 0 0 25px rgba(239, 68, 68, 0.4) !important;
+}
+
+.confirm-modal-dark .ant-modal-confirm-title {
+  color: #e0f2fe !important;
+  font-weight: 600 !important;
+}
+
+.confirm-modal-dark .ant-modal-confirm-content {
+  color: #94a3b8 !important;
 }

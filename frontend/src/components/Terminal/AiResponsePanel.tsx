@@ -1,20 +1,23 @@
-import { Button, Input, Space, Spin, Collapse } from 'antd';
-import { CloseOutlined, PlayCircleOutlined, CopyOutlined, EditOutlined, CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined, RightOutlined } from '@ant-design/icons';
+import { Button, Input, Spin } from 'antd';
+import { PlayCircleOutlined, EditOutlined, CloseCircleOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
 import { useState } from 'react';
-import { useAppStore, type AiResponse, type AiHistoryItem } from '../../stores/appStore';
+import { useAppStore, type AiHistoryItem } from '../../stores/appStore';
 
 interface AiResponsePanelProps {
   onExecuteCommand: (command: string, historyId?: string) => void;
+  onRejectCommand?: (query: string, reason: string) => void;
 }
 
-const AiResponsePanel = ({ onExecuteCommand }: AiResponsePanelProps) => {
-  const { aiResponse, clearAiResponse, aiHistory, addAiHistoryItem, updateAiHistoryStatus } = useAppStore();
+const AiResponsePanel = ({ onExecuteCommand, onRejectCommand }: AiResponsePanelProps) => {
+  const { aiResponse, clearAiResponse, aiHistory, addAiHistoryItem } = useAppStore();
   const [editedCommand, setEditedCommand] = useState<string>('');
   const [isEditing, setIsEditing] = useState(false);
   const [historyExpanded, setHistoryExpanded] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
 
   if (!aiResponse) return null;
 
+  // 执行命令
   const handleExecute = () => {
     const cmd = isEditing ? editedCommand : aiResponse.command;
     const historyId = `cmd-${Date.now()}`;
@@ -38,47 +41,44 @@ const AiResponsePanel = ({ onExecuteCommand }: AiResponsePanelProps) => {
     setEditedCommand('');
   };
 
-  const handleCancel = () => {
+  // 拒绝命令 - 发送拒绝原因给 AI 重新生成
+  const handleReject = () => {
+    if (onRejectCommand && aiResponse.query) {
+      // 发送拒绝原因和原查询给 AI
+      const reason = rejectReason || '用户拒绝执行此命令';
+      onRejectCommand(aiResponse.query, reason);
+    }
     clearAiResponse();
+    setRejectReason('');
   };
 
-  const handleCopy = () => {
-    const cmd = isEditing ? editedCommand : aiResponse.command;
-    navigator.clipboard.writeText(cmd);
-  };
-
+  // 开始编辑
   const startEditing = () => {
     setEditedCommand(aiResponse.command);
     setIsEditing(true);
   };
 
+  // 保存编辑
+  const saveEditing = () => {
+    setIsEditing(false);
+    // 保持编辑后的命令，等待用户执行
+  };
+
+  // 取消编辑
   const cancelEditing = () => {
     setIsEditing(false);
     setEditedCommand('');
-  };
-
-  // 风险等级颜色
-  const getRiskColor = (level: string) => {
-    switch (level) {
-      case 'critical':
-      case 'high':
-        return '#f85149';
-      case 'medium':
-        return '#f59e0b';
-      default:
-        return '#52c41a';
-    }
   };
 
   // 状态图标
   const getStatusIcon = (status: AiHistoryItem['status']) => {
     switch (status) {
       case 'executed':
-        return <CheckCircleOutlined style={{ color: '#52c41a' }} />;
+        return <span style={{ color: '#52c41a' }}>✓</span>;
       case 'cancelled':
-        return <CloseCircleOutlined style={{ color: '#f85149' }} />;
+        return <span style={{ color: '#f85149' }}>✗</span>;
       default:
-        return <ClockCircleOutlined style={{ color: '#8b949e' }} />;
+        return <span style={{ color: '#8b949e' }}>○</span>;
     }
   };
 
@@ -86,9 +86,9 @@ const AiResponsePanel = ({ onExecuteCommand }: AiResponsePanelProps) => {
   const getStatusText = (status: AiHistoryItem['status']) => {
     switch (status) {
       case 'executed':
-        return '已执行';
+        return '已同意';
       case 'cancelled':
-        return '已取消';
+        return '已拒绝';
       default:
         return '待执行';
     }
@@ -107,13 +107,6 @@ const AiResponsePanel = ({ onExecuteCommand }: AiResponsePanelProps) => {
           💡 AI 命令建议
           {aiResponse.loading && <Spin size="small" style={{ marginLeft: 8 }} />}
         </span>
-        <Button
-          type="text"
-          icon={<CloseOutlined />}
-          className="close-btn"
-          onClick={handleCancel}
-          size="small"
-        />
       </div>
       <div className="ai-suggestion-body">
         {/* 用户问题 */}
@@ -123,30 +116,26 @@ const AiResponsePanel = ({ onExecuteCommand }: AiResponsePanelProps) => {
 
         {/* 流式输出显示 */}
         {aiResponse.loading && aiResponse.streamingText && (
-          <div style={{
-            marginBottom: 12,
-            padding: '10px 12px',
-            background: '#0d1117',
-            borderRadius: 8,
-            border: '1px solid #21262d',
-            fontFamily: 'Monaco, Menlo, "Courier New", monospace',
-            fontSize: 13,
-            color: '#8b949e',
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-all',
-            maxHeight: 150,
-            overflow: 'auto'
-          }}>
+          <div className="streaming-output">
             {aiResponse.streamingText}
-            <span style={{ color: '#58a6ff', animation: 'blink 1s infinite' }}>▊</span>
+            <span className="cursor-blink">▊</span>
           </div>
         )}
 
         {/* 命令显示/编辑 */}
         {!aiResponse.loading && aiResponse.command && (
           <>
+            {/* 风险等级标题 */}
+            <div className="risk-header">
+              <span className={`risk-badge ${aiResponse.riskLevel}`}>
+                {aiResponse.riskLevel === 'high' || aiResponse.riskLevel === 'critical'
+                  ? '⚠️ 高危命令'
+                  : '命令'}
+              </span>
+            </div>
+
             {isEditing ? (
-              <div className="command-edit-row">
+              <div className="command-edit-container">
                 <Input
                   className="command-input"
                   value={editedCommand}
@@ -154,96 +143,74 @@ const AiResponsePanel = ({ onExecuteCommand }: AiResponsePanelProps) => {
                   onPressEnter={handleExecute}
                   autoFocus
                 />
-                <Button size="small" onClick={cancelEditing}>取消</Button>
-                <Button type="primary" size="small" onClick={handleExecute}>执行</Button>
+                <div className="edit-actions">
+                  <Button size="small" icon={<CloseOutlined />} onClick={cancelEditing}>取消</Button>
+                  <Button size="small" type="primary" icon={<CheckOutlined />} onClick={saveEditing}>保存</Button>
+                </div>
               </div>
             ) : (
-              <div className="command-display-row">
-                <span className="command-prefix">$</span>
-                <code className="command-text">{aiResponse.command}</code>
-                <Space size={4}>
+              <div className="command-display-container">
+                <div className="command-box">
+                  <code className="command-text">{aiResponse.command}</code>
+                </div>
+
+                {/* 三按钮操作区 */}
+                <div className="action-buttons">
                   <Button
-                    type="text"
+                    size="small"
+                    type="primary"
+                    icon={<PlayCircleOutlined />}
+                    onClick={handleExecute}
+                  >
+                    执行
+                  </Button>
+                  <Button
+                    size="small"
                     icon={<EditOutlined />}
-                    size="small"
                     onClick={startEditing}
-                    title="编辑命令"
-                  />
+                  >
+                    修改
+                  </Button>
                   <Button
-                    type="text"
-                    icon={<CopyOutlined />}
                     size="small"
-                    onClick={handleCopy}
-                    title="复制命令"
-                  />
-                </Space>
+                    danger
+                    icon={<CloseCircleOutlined />}
+                    onClick={handleReject}
+                  >
+                    拒绝
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* 说明 */}
+            {aiResponse.explanation && (
+              <div className="explanation-row">
+                <span className="explanation-label">说明: </span>
+                <span className="explanation-text">{aiResponse.explanation}</span>
+              </div>
+            )}
+
+            {/* 警告 */}
+            {aiResponse.warnings && aiResponse.warnings.length > 0 && (
+              <div className="warnings-row">
+                {aiResponse.warnings.map((w, i) => (
+                  <div key={i} className="warning-item">⚠️ {w}</div>
+                ))}
               </div>
             )}
           </>
         )}
 
-        {/* 说明 */}
-        {!aiResponse.loading && aiResponse.explanation && (
-          <div className="explanation-row">
-            <span className="explanation-label">说明: </span>
-            <span className="explanation-text">{aiResponse.explanation}</span>
-          </div>
-        )}
-
-        {/* 风险等级 */}
-        {!aiResponse.loading && aiResponse.command && (
-          <div style={{ marginTop: 10, marginBottom: 10 }}>
-            <span style={{
-              padding: '2px 8px',
-              borderRadius: 4,
-              fontSize: 12,
-              background: `${getRiskColor(aiResponse.riskLevel)}22`,
-              color: getRiskColor(aiResponse.riskLevel),
-              border: `1px solid ${getRiskColor(aiResponse.riskLevel)}44`
-            }}>
-              风险等级: {aiResponse.riskLevel.toUpperCase()}
-            </span>
-          </div>
-        )}
-
-        {/* 警告 */}
-        {!aiResponse.loading && aiResponse.warnings && aiResponse.warnings.length > 0 && (
-          <div className="warnings-row">
-            {aiResponse.warnings.map((w, i) => (
-              <div key={i} className="warning-item">⚠️ {w}</div>
-            ))}
-          </div>
-        )}
-
-        {/* 操作按钮 */}
-        {!aiResponse.loading && aiResponse.command && !isEditing && (
-          <div className="actions-row">
-            <Button size="small" onClick={handleCancel}>取消</Button>
-            <Button
-              type="primary"
-              size="small"
-              icon={<PlayCircleOutlined />}
-              onClick={handleExecute}
-            >
-              执行
-            </Button>
-          </div>
-        )}
-
         {/* 历史记录 */}
-        {aiHistory.length > 0 && (
+        {aiHistory.length > 0 && !isEditing && (
           <div className="ai-history-section">
             <div
               className="ai-history-header"
               onClick={() => setHistoryExpanded(!historyExpanded)}
             >
               <span>📜 历史记录 ({aiHistory.length})</span>
-              <RightOutlined
-                style={{
-                  transition: 'transform 0.2s',
-                  transform: historyExpanded ? 'rotate(90deg)' : 'none'
-                }}
-              />
+              <span className={`expand-icon ${historyExpanded ? 'expanded' : ''}`}>▶</span>
             </div>
             {historyExpanded && (
               <div className="ai-history-list">
@@ -282,7 +249,7 @@ const AiResponsePanel = ({ onExecuteCommand }: AiResponsePanelProps) => {
                                 warnings: [],
                                 status: 'pending',
                               });
-                              onExecuteCommand(item.followUpCommand, newHistoryId);
+                              onExecuteCommand(item.followUpCommand || '', newHistoryId);
                             }}
                           >
                             执行建议命令

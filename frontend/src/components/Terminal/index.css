@@ -11,6 +11,14 @@
   background: #161b22;
   border-bottom: 1px solid #30363d;
   padding: 0 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tab-bar .ant-tabs {
+  flex: 1;
+  min-width: 0;
 }
 
 .tab-bar .ant-tabs-nav {
@@ -102,6 +110,32 @@
   overflow: auto;
 }
 
+/* 终端内部包装器 */
+.terminal-wrapper-inner {
+  position: relative;
+}
+
+/* 模式提示语覆盖层 */
+.terminal-placeholder-overlay {
+  position: absolute;
+  bottom: 20px;
+  left: 12px;
+  right: 12px;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.placeholder-text {
+  display: inline-block;
+  padding: 6px 12px;
+  background: rgba(13, 17, 23, 0.9);
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  color: #6e7681;
+  font-size: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
 /* AI 建议面板 - 浮动卡片 */
 .ai-suggestion-panel {
   position: absolute;
@@ -115,7 +149,7 @@
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
   z-index: 1000;
   overflow: hidden;
-  max-height: 400px;
+  max-height: 450px;
   display: flex;
   flex-direction: column;
 }
@@ -147,25 +181,69 @@
 .ai-suggestion-body {
   padding: 16px;
   overflow-y: auto;
-  max-height: 340px;
+  max-height: 390px;
 }
 
-/* 命令显示行 */
-.command-display-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
+/* 流式输出 */
+.streaming-output {
+  margin-bottom: 12px;
+  padding: 10px 12px;
   background: #0d1117;
-  border-radius: 6px;
+  border-radius: 8;
   border: 1px solid #21262d;
+  font-family: Monaco, Menlo, 'Courier New', monospace;
+  font-size: 13px;
+  color: #8b949e;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 150px;
+  overflow: auto;
+}
+
+.cursor-blink {
+  color: #58a6ff;
+  animation: blink 1s infinite;
+}
+
+/* 风险等级标题 */
+.risk-header {
   margin-bottom: 8px;
 }
 
-.command-prefix {
-  color: #6e7681;
-  font-family: Monaco, Menlo, 'Courier New', monospace;
-  font-weight: bold;
+.risk-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.risk-badge.low {
+  background: rgba(82, 196, 26, 0.15);
+  color: #52c41a;
+}
+
+.risk-badge.medium {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.risk-badge.high,
+.risk-badge.critical {
+  background: rgba(248, 81, 73, 0.15);
+  color: #f85149;
+}
+
+/* 命令显示容器 */
+.command-display-container {
+  margin-bottom: 12px;
+}
+
+.command-box {
+  padding: 10px 12px;
+  background: #0d1117;
+  border-radius: 6px;
+  border: 1px solid #21262d;
+  margin-bottom: 10px;
 }
 
 .command-text {
@@ -174,18 +252,30 @@
   color: #58a6ff;
   background: transparent;
   padding: 0;
+  word-break: break-all;
 }
 
-/* 命令编辑行 */
-.command-edit-row {
+/* 三按钮操作区 */
+.action-buttons {
   display: flex;
   gap: 8px;
-  margin-bottom: 8px;
+  justify-content: flex-end;
 }
 
-.command-edit-row .command-input {
-  flex: 1;
+/* 命令编辑容器 */
+.command-edit-container {
+  margin-bottom: 12px;
+}
+
+.command-edit-container .command-input {
+  margin-bottom: 8px;
   font-family: Monaco, Menlo, 'Courier New', monospace;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 /* 说明行 */
@@ -382,6 +472,15 @@
 .ai-history-header:hover {
   background: #30363d;
   color: #c9d1d9;
+}
+
+.expand-icon {
+  font-size: 10px;
+  transition: transform 0.2s;
+}
+
+.expand-icon.expanded {
+  transform: rotate(90deg);
 }
 
 .ai-history-list {
@@ -602,4 +701,62 @@
 
 [data-theme="light"] .command-hint-description {
   color: #64748b;
+}
+
+/* 模式切换控件 */
+.mode-switch-container {
+  padding: 0 12px;
+  flex-shrink: 0;
+}
+
+.mode-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: #21262d;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.mode-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #6e7681;
+  transition: color 0.2s;
+}
+
+.mode-label.active {
+  color: #58a6ff;
+}
+
+.mode-switch .ant-switch {
+  background: #30363d;
+}
+
+.mode-switch .ant-switch-checked {
+  background: #238636;
+}
+
+/* Light Theme - 模式切换 */
+[data-theme="light"] .mode-switch {
+  background: #f8fafc;
+}
+
+[data-theme="light"] .mode-label {
+  color: #94a3b8;
+}
+
+[data-theme="light"] .mode-label.active {
+  color: #3b82f6;
+}
+
+[data-theme="light"] .mode-switch .ant-switch {
+  background: #e2e8f0;
+}
+
+[data-theme="light"] .mode-switch .ant-switch-checked {
+  background: #22c55e;
 }

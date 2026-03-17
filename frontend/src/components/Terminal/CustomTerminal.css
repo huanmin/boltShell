@@ -1,0 +1,565 @@
+/* 自定义终端容器 */
+.custom-terminal {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #0d1117;
+  font-family: Monaco, Menlo, 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #d4d4d4;
+  cursor: text;
+}
+
+/* 输出区域 */
+.terminal-output {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  min-height: 0;
+}
+
+.output-line {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* 输入行 - 在输出区域内 */
+.input-line {
+  display: flex;
+  align-items: center;
+  margin-top: 4px;
+  min-height: 24px;
+}
+
+.terminal-prompt {
+  color: #22c55e;
+  font-weight: bold;
+  white-space: nowrap;
+  margin-right: 4px;
+  font-family: Monaco, Menlo, 'Courier New', monospace;
+  font-size: 14px;
+}
+
+.terminal-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #d4d4d4;
+  font-family: Monaco, Menlo, 'Courier New', monospace;
+  font-size: 14px;
+  min-width: 0;
+  caret-color: #58a6ff;
+}
+
+.terminal-input::placeholder {
+  color: #6e7681;
+  font-size: 12px;
+}
+
+.terminal-input:disabled {
+  opacity: 0.5;
+}
+
+.input-cursor {
+  width: 8px;
+  height: 16px;
+  background: #58a6ff;
+  animation: cursor-blink 1s step-end infinite;
+}
+
+@keyframes cursor-blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+/* 命令提示面板 */
+.command-hints-panel {
+  margin-top: 8px;
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  overflow: hidden;
+  max-width: 400px;
+}
+
+.hint-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #21262d;
+  transition: background 0.15s;
+}
+
+.hint-item:last-of-type {
+  border-bottom: none;
+}
+
+.hint-item:hover,
+.hint-item.selected {
+  background: #21262d;
+}
+
+.hint-item.selected {
+  border-left: 2px solid #58a6ff;
+}
+
+.hint-command {
+  font-family: Monaco, Menlo, 'Courier New', monospace;
+  color: #58a6ff;
+  font-size: 13px;
+}
+
+.hint-description {
+  color: #8b949e;
+  font-size: 12px;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hint-hint {
+  display: flex;
+  gap: 16px;
+  padding: 6px 12px;
+  background: #21262d;
+  font-size: 11px;
+  color: #6e7681;
+}
+
+.hint-hint span {
+  padding: 2px 6px;
+  background: #0d1117;
+  border-radius: 4px;
+}
+
+/* AI 流式输出 */
+.ai-streaming {
+  padding: 10px 12px;
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  margin: 8px 0;
+}
+
+.ai-streaming-text {
+  color: #8b949e;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.cursor-blink {
+  color: #58a6ff;
+  animation: blink 1s infinite;
+}
+
+/* ==================== AI 卡片嵌套结构 ==================== */
+
+.ai-card-wrapper {
+  margin: 12px 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #161b22;
+  border: 1px solid #30363d;
+}
+
+.ai-card-executed {
+  opacity: 0.9;
+}
+
+.ai-card-cancelled {
+  opacity: 0.6;
+}
+
+/* AI 回复层 */
+.ai-reply {
+  padding: 12px 16px;
+  border-bottom: 1px solid #21262d;
+}
+
+.ai-reply-text {
+  color: #c9d1d9;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* 命令确认框 */
+.ai-command-box {
+  background: #0d1117;
+}
+
+/* 命令框标题栏 */
+.ai-command-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  background: #161b22;
+  border-bottom: 1px solid #21262d;
+}
+
+.risk-label {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 4px;
+}
+
+.risk-low {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.risk-medium {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.risk-high, .risk-critical {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+/* 状态标签 */
+.status-badge {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 4px;
+}
+
+.status-executed {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.status-cancelled {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+/* 操作按钮组 */
+.ai-command-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.ai-command-actions button,
+.edit-actions button {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+
+.btn-execute {
+  background: #238636;
+  color: #fff;
+}
+
+.btn-execute:hover {
+  background: #2ea043;
+}
+
+.btn-edit {
+  background: #21262d;
+  color: #c9d1d9;
+  border: 1px solid #30363d;
+}
+
+.btn-edit:hover {
+  background: #30363d;
+}
+
+.btn-reject {
+  background: transparent;
+  color: #f85149;
+  border: 1px solid rgba(248, 81, 73, 0.4);
+}
+
+.btn-reject:hover {
+  background: rgba(248, 81, 73, 0.15);
+}
+
+/* 命令内容 */
+.ai-command-content {
+  padding: 12px 16px;
+}
+
+.ai-command-content code {
+  color: #58a6ff;
+  font-family: Monaco, Menlo, 'Courier New', monospace;
+  font-size: 14px;
+  background: transparent;
+}
+
+/* 命令编辑模式 */
+.ai-command-edit {
+  padding: 12px 16px;
+}
+
+.command-edit-input {
+  width: 100%;
+  padding: 10px 12px;
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  color: #58a6ff;
+  font-family: Monaco, Menlo, 'Courier New', monospace;
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.command-edit-input:focus {
+  outline: none;
+  border-color: #58a6ff;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.btn-cancel {
+  background: #21262d;
+  color: #c9d1d9;
+  border: 1px solid #30363d;
+}
+
+.btn-save {
+  background: #238636;
+  color: #fff;
+}
+
+/* 命令输出 */
+.ai-command-output {
+  padding: 12px 16px;
+  border-top: 1px solid #21262d;
+  background: #161b22;
+}
+
+.ai-command-output pre {
+  color: #8b949e;
+  font-family: Monaco, Menlo, 'Courier New', monospace;
+  font-size: 12px;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+/* 后续建议 */
+.ai-followup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: rgba(88, 166, 255, 0.1);
+  border-top: 1px solid #21262d;
+  flex-wrap: wrap;
+}
+
+.followup-icon {
+  color: #58a6ff;
+}
+
+.followup-text {
+  flex: 1;
+  color: #8b949e;
+  font-size: 13px;
+  min-width: 100px;
+}
+
+.btn-followup {
+  padding: 4px 12px;
+  background: transparent;
+  color: #58a6ff;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.btn-followup:hover {
+  background: rgba(88, 166, 255, 0.15);
+}
+
+/* 开启新会话 */
+.ai-new-session {
+  padding: 10px 16px;
+  text-align: center;
+  border-top: 1px solid #21262d;
+}
+
+.ai-new-session button {
+  background: transparent;
+  border: none;
+  color: #58a6ff;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 12px;
+}
+
+.ai-new-session button:hover {
+  text-decoration: underline;
+}
+
+/* 光标闪烁动画 */
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+/* ==================== Light Theme ==================== */
+
+[data-theme="light"] .custom-terminal {
+  background: #f8fafc;
+  color: #1e293b;
+}
+
+[data-theme="light"] .terminal-output {
+  background: #f8fafc;
+}
+
+[data-theme="light"] .terminal-prompt {
+  color: #22c55e;
+}
+
+[data-theme="light"] .terminal-input {
+  color: #1e293b;
+}
+
+[data-theme="light"] .terminal-input::placeholder {
+  color: #94a3b8;
+}
+
+[data-theme="light"] .input-cursor {
+  background: #3b82f6;
+}
+
+[data-theme="light"] .command-hints-panel {
+  background: #ffffff;
+  border-color: #e2e8f0;
+}
+
+[data-theme="light"] .hint-item {
+  border-bottom-color: #e2e8f0;
+}
+
+[data-theme="light"] .hint-item:hover,
+[data-theme="light"] .hint-item.selected {
+  background: #f1f5f9;
+}
+
+[data-theme="light"] .hint-item.selected {
+  border-left-color: #3b82f6;
+}
+
+[data-theme="light"] .hint-command {
+  color: #3b82f6;
+}
+
+[data-theme="light"] .hint-description {
+  color: #64748b;
+}
+
+[data-theme="light"] .hint-hint {
+  background: #f8fafc;
+  color: #94a3b8;
+}
+
+[data-theme="light"] .hint-hint span {
+  background: #ffffff;
+}
+
+[data-theme="light"] .ai-streaming {
+  background: #ffffff;
+  border-color: #e2e8f0;
+}
+
+[data-theme="light"] .ai-streaming-text {
+  color: #64748b;
+}
+
+[data-theme="light"] .ai-card-wrapper {
+  background: #ffffff;
+  border-color: #e2e8f0;
+}
+
+[data-theme="light"] .ai-reply {
+  border-bottom-color: #e2e8f0;
+}
+
+[data-theme="light"] .ai-reply-text {
+  color: #1e293b;
+}
+
+[data-theme="light"] .ai-command-box {
+  background: #f8fafc;
+}
+
+[data-theme="light"] .ai-command-header {
+  background: #ffffff;
+  border-bottom-color: #e2e8f0;
+}
+
+[data-theme="light"] .ai-command-content code {
+  color: #3b82f6;
+}
+
+[data-theme="light"] .command-edit-input {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  color: #3b82f6;
+}
+
+[data-theme="light"] .ai-command-output {
+  background: #ffffff;
+  border-top-color: #e2e8f0;
+}
+
+[data-theme="light"] .ai-command-output pre {
+  color: #64748b;
+}
+
+[data-theme="light"] .ai-followup {
+  background: rgba(59, 130, 246, 0.1);
+  border-top-color: #e2e8f0;
+}
+
+[data-theme="light"] .followup-text {
+  color: #64748b;
+}
+
+[data-theme="light"] .btn-followup {
+  color: #3b82f6;
+  border-color: #e2e8f0;
+}
+
+[data-theme="light"] .ai-new-session {
+  border-top-color: #e2e8f0;
+}
+
+[data-theme="light"] .ai-new-session button {
+  color: #3b82f6;
+}
+
+[data-theme="light"] .btn-edit {
+  background: #f8fafc;
+  color: #1e293b;
+  border-color: #e2e8f0;
+}
+
+[data-theme="light"] .btn-cancel {
+  background: #f8fafc;
+  color: #1e293b;
+  border-color: #e2e8f0;
+}
